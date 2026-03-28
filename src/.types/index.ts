@@ -1,6 +1,6 @@
 export type ORSetEntry<T> = { __uuidv7: string } & T
 export type ORSetState<T> = {
-  items: Set<ORSetEntry<T>>
+  items: Record<string, Readonly<ORSetEntry<T>>>
   tombs: Set<string>
 }
 export type ORSetSnapshot<T> = {
