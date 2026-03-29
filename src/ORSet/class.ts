@@ -43,15 +43,14 @@ export class ORSet<T> {
   /***/
   append(entry: ORSetAppendInput<T>): void {
     const v7 = entry.__uuidv7 as string | undefined
-    const nextV7 =
-      this.isUuidV7(v7) &&
-      !this.state.tombs.has(v7) &&
-      !Object.hasOwn(this.state.items, v7)
-        ? v7
-        : uuidv7()
-    const nextEntry = entry as unknown as ORSetEntry<T>
-    nextEntry.__uuidv7 = nextV7
-    const frozenEntry = Object.freeze(nextEntry)
+    if (this.isUuidV7(v7) && Object.hasOwn(this.state.items, v7)) return
+
+    const frozenEntry = Object.freeze(
+      this.isUuidV7(v7) && !this.state.tombs.has(v7)
+        ? (entry as unknown as ORSetEntry<T>)
+        : ({ ...entry, __uuidv7: uuidv7() } as ORSetEntry<T>)
+    )
+    const nextV7 = frozenEntry.__uuidv7
     this.state.items[nextV7] = frozenEntry
     this.size++
     this.eventTarget.dispatchEvent(
@@ -70,6 +69,7 @@ export class ORSet<T> {
   }
   /***/
   clear(): void {
+    if (this.size === 0) return
     const egressTombs = []
     for (const v7 of Object.keys(this.state.items)) {
       this.state.tombs.add(v7)
@@ -96,6 +96,8 @@ export class ORSet<T> {
     const v7 = entry.__uuidv7
     if (!this.isUuidV7(v7)) return
     const hadItem = Object.hasOwn(this.state.items, v7)
+    const hadTomb = this.state.tombs.has(v7)
+    if (!hadItem && hadTomb) return
     this.state.tombs.add(v7)
     delete this.state.items[v7]
     if (hadItem) this.size--
@@ -143,6 +145,7 @@ export class ORSet<T> {
         additions.push(entry)
       }
     }
+    if (additions.length === 0 && removals.length === 0) return
     this.eventTarget.dispatchEvent(
       new CustomEvent<ORSetMergeResult<T>>('merge', {
         detail: {
