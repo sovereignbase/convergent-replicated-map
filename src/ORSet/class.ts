@@ -38,6 +38,7 @@ export class ORSet<T> {
     const v7 = uuidv7()
     entry.__uuidv7 = v7
     this.state.items[v7] = entry
+    this.size++
     this.eventTarget.dispatchEvent(
       new CustomEvent<ORSetSnapshot<T>>('delta', {
         detail: {
@@ -54,6 +55,7 @@ export class ORSet<T> {
       this.state.tombs.add(v7)
       delete this.state.items[v7]
       egressTombs.push(v7)
+      this.size--
     }
     this.eventTarget.dispatchEvent(
       new CustomEvent<ORSetSnapshot<T>>('delta', {
@@ -69,6 +71,7 @@ export class ORSet<T> {
     const v7 = entry.__uuidv7
     this.state.tombs.add(v7)
     delete this.state.items[v7]
+    this.size--
     this.eventTarget.dispatchEvent(
       new CustomEvent<ORSetSnapshot<T>>('delta', {
         detail: {
@@ -94,12 +97,14 @@ export class ORSet<T> {
       if (typeof tomb !== 'string' || uuidVersion(tomb) !== 7) continue
       this.state.tombs.add(tomb)
       delete this.state.items[tomb]
+      this.size--
       removals.push(tomb)
     }
     for (const entry of ingress.items) {
       const v7 = entry.__uuidv7
       if (!this.state.tombs.has(v7) && !Object.hasOwn(this.state.items, v7)) {
         this.state.items[v7] = entry
+        this.size++
         additions.push(entry)
       }
     }
