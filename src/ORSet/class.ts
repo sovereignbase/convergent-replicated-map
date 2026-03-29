@@ -9,7 +9,7 @@ import { validateORSetSnapshot } from './validateORSetSnapshot/index.js'
 
 export class ORSet<T> {
   private readonly eventTarget = new EventTarget()
-  private state: ORSetState<T>
+  private readonly state: ORSetState<T>
   public size: number
   /***/
   constructor(snapshot?: ORSetSnapshot<T>) {
@@ -135,5 +135,3 @@ export class ORSet<T> {
     this.eventTarget.removeEventListener(type, listener, options)
   }
 }
-
-new ORSet().addEventListener('delta', (ev) => {})
