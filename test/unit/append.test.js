@@ -4,10 +4,11 @@ import { ORSet } from '../../dist/index.js'
 import {
   captureEvents,
   createValidUuid,
+  readSnapshot,
   sortStrings,
 } from '../shared/orset.mjs'
 
-test('append assigns uuid, freezes stored entry, and emits delta plus snapshot', () => {
+test('append assigns uuid, freezes stored value, and emits delta', () => {
   const set = new ORSet()
   const { events } = captureEvents(set)
 
@@ -20,26 +21,22 @@ test('append assigns uuid, freezes stored entry, and emits delta plus snapshot',
   assert.equal(stored.name, 'alice')
   assert.equal(Object.isFrozen(stored), true)
   assert.equal(events.delta.length, 1)
-  assert.equal(events.snapshot.length, 1)
-  assert.deepEqual(events.delta[0].tombs, [])
-  assert.equal(events.delta[0].items[0].__uuidv7, stored.__uuidv7)
-  assert.deepEqual(
-    sortStrings(events.snapshot[0].items.map((item) => item.__uuidv7)),
-    [stored.__uuidv7]
-  )
+  assert.equal(events.snapshot.length, 0)
+  assert.deepEqual(events.delta[0].tombstones, [])
+  assert.equal(events.delta[0].values[0].__uuidv7, stored.__uuidv7)
 })
 
 test('append preserves a valid supplied free uuid and object identity', () => {
   const set = new ORSet()
   const v7 = createValidUuid('seed')
-  const entry = { __uuidv7: v7, name: 'manual' }
+  const value = { __uuidv7: v7, name: 'manual' }
 
-  set.append(entry)
+  set.append(value)
 
   assert.equal(set.size, 1)
-  assert.equal(set.values()[0], entry)
+  assert.equal(set.values()[0], value)
   assert.equal(set.values()[0].__uuidv7, v7)
-  assert.equal(Object.isFrozen(entry), true)
+  assert.equal(Object.isFrozen(value), true)
 })
 
 test('append ignores duplicate live uuid and emits nothing', () => {
@@ -88,7 +85,7 @@ test('append keeps live values in insertion order', () => {
     ['alice', 'bob', 'carol']
   )
   assert.deepEqual(
-    set.snapshot().items.map((item) => item.name),
+    readSnapshot(set).values.map((value) => value.name),
     ['alice', 'bob', 'carol']
   )
 })

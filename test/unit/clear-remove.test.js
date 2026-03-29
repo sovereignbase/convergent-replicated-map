@@ -4,6 +4,7 @@ import { ORSet } from '../../dist/index.js'
 import {
   captureEvents,
   createValidUuid,
+  readSnapshot,
   sortStrings,
 } from '../shared/orset.mjs'
 
@@ -29,11 +30,17 @@ test('clear tombstones every live uuid and emits once', () => {
 
   assert.equal(set.size, 0)
   assert.deepEqual(set.values(), [])
-  assert.deepEqual(sortStrings(set.snapshot().tombs), sortStrings(liveIds))
   assert.equal(events.delta.length, 1)
-  assert.equal(events.snapshot.length, 1)
-  assert.deepEqual(sortStrings(events.delta[0].tombs), sortStrings(liveIds))
-  assert.deepEqual(events.delta[0].items, [])
+  assert.equal(events.snapshot.length, 0)
+  assert.deepEqual(
+    sortStrings(readSnapshot(set).tombstones),
+    sortStrings(liveIds)
+  )
+  assert.deepEqual(
+    sortStrings(events.delta[0].tombstones),
+    sortStrings(liveIds)
+  )
+  assert.deepEqual(events.delta[0].values, [])
 })
 
 test('remove invalid uuid is silent', () => {
@@ -47,7 +54,7 @@ test('remove invalid uuid is silent', () => {
   assert.equal(events.snapshot.length, 0)
 })
 
-test('remove live item decrements size and emits delta plus snapshot', () => {
+test('remove live value decrements size and emits delta', () => {
   const set = new ORSet()
   set.append({ name: 'alice' })
   const [live] = set.values()
@@ -57,10 +64,10 @@ test('remove live item decrements size and emits delta plus snapshot', () => {
 
   assert.equal(set.size, 0)
   assert.equal(set.has(live), false)
-  assert.deepEqual(set.snapshot().tombs, [live.__uuidv7])
   assert.equal(events.delta.length, 1)
-  assert.equal(events.snapshot.length, 1)
-  assert.deepEqual(events.delta[0].tombs, [live.__uuidv7])
+  assert.equal(events.snapshot.length, 0)
+  assert.deepEqual(readSnapshot(set).tombstones, [live.__uuidv7])
+  assert.deepEqual(events.delta[0].tombstones, [live.__uuidv7])
 })
 
 test('repeated remove after tombstone is silent', () => {
@@ -74,7 +81,7 @@ test('repeated remove after tombstone is silent', () => {
 
   assert.equal(set.size, 0)
   assert.equal(events.delta.length, 1)
-  assert.equal(events.snapshot.length, 1)
+  assert.equal(events.snapshot.length, 0)
 })
 
 test('remove unknown valid uuid records a causal tomb and emits once', () => {
@@ -86,10 +93,10 @@ test('remove unknown valid uuid records a causal tomb and emits once', () => {
 
   assert.equal(set.size, 0)
   assert.deepEqual(set.values(), [])
-  assert.deepEqual(set.snapshot().tombs, [ghostId])
   assert.equal(events.delta.length, 1)
-  assert.equal(events.snapshot.length, 1)
-  assert.deepEqual(events.delta[0].tombs, [ghostId])
+  assert.equal(events.snapshot.length, 0)
+  assert.deepEqual(readSnapshot(set).tombstones, [ghostId])
+  assert.deepEqual(events.delta[0].tombstones, [ghostId])
 })
 
 test('has returns false after clear and after remove', () => {
@@ -105,4 +112,25 @@ test('has returns false after clear and after remove', () => {
 
   assert.equal(clearSet.has(clearLive), false)
   assert.equal(removeSet.has(removeLive), false)
+})
+
+test('tombstones exposes the live tomb set for external garbage collection', () => {
+  const set = new ORSet()
+  set.append({ name: 'alice' })
+  const [removed] = set.values()
+
+  set.remove(removed)
+
+  const tombstones = set.tombstones()
+
+  assert.equal(tombstones instanceof Set, true)
+  assert.equal(tombstones.has(removed.__uuidv7), true)
+
+  tombstones.delete(removed.__uuidv7)
+
+  assert.deepEqual(readSnapshot(set).tombstones, [])
+
+  set.append({ __uuidv7: removed.__uuidv7, name: 'alice-again' })
+
+  assert.equal(set.values()[0].__uuidv7, removed.__uuidv7)
 })

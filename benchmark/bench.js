@@ -27,7 +27,7 @@ function bench(name, iterations, fn) {
   console.log(`${name.padEnd(28)} ${formatOps(iterations, duration)}`)
 }
 
-function createEntry(index, prefix) {
+function createValue(index, prefix) {
   return {
     __uuidv7: uuidv7(),
     name: `${prefix}-${index}`,
@@ -36,12 +36,12 @@ function createEntry(index, prefix) {
   }
 }
 
-function createEntries(count, prefix) {
-  const entries = []
+function createValues(count, prefix) {
+  const values = []
   for (let index = 0; index < count; index++) {
-    entries.push(createEntry(index, prefix))
+    values.push(createValue(index, prefix))
   }
-  return entries
+  return values
 }
 
 function createAppendInput(index, prefix) {
@@ -53,36 +53,51 @@ function createAppendInput(index, prefix) {
 }
 
 function createAppendInputs(count, prefix) {
-  const entries = []
+  const values = []
   for (let index = 0; index < count; index++) {
-    entries.push(createAppendInput(index, prefix))
+    values.push(createAppendInput(index, prefix))
   }
-  return entries
+  return values
 }
 
-function createSnapshot(items, tombs = []) {
-  return { items, tombs }
+function createSnapshot(values, tombstones = []) {
+  return { values, tombstones }
+}
+
+function readSnapshot(set) {
+  let snapshot
+
+  set.addEventListener(
+    'snapshot',
+    (event) => {
+      snapshot = event.detail
+    },
+    { once: true }
+  )
+  set.snapshot()
+
+  return snapshot
 }
 
 console.log(
   `Benchmarking @sovereignbase/observed-remove-set on Node ${process.versions.node}...`
 )
 
-const oneLiveEntry = createEntry(0, 'single')
-const oneLiveSnapshot = createSnapshot([oneLiveEntry])
-const live64 = createEntries(64, 'live64')
-const live256 = createEntries(256, 'live256')
-const live512 = createEntries(512, 'live512')
-const live2048 = createEntries(2048, 'live2048')
+const oneLiveValue = createValue(0, 'single')
+const oneLiveSnapshot = createSnapshot([oneLiveValue])
+const live64 = createValues(64, 'live64')
+const live256 = createValues(256, 'live256')
+const live512 = createValues(512, 'live512')
+const live2048 = createValues(2048, 'live2048')
 const appendBatch256 = createAppendInputs(256, 'append')
 const snapshot64 = createSnapshot(live64)
 const snapshot256 = createSnapshot(live256)
 const snapshot512 = createSnapshot(live512)
 const snapshot2048 = createSnapshot(live2048)
-const mixedLive512 = createEntries(512, 'mixed-live')
-const mixedRemoved128 = createEntries(128, 'mixed-removed')
-const mixedDuplicates128 = mixedLive512.slice(0, 128).map((entry, index) => ({
-  __uuidv7: entry.__uuidv7,
+const mixedLive512 = createValues(512, 'mixed-live')
+const mixedRemoved128 = createValues(128, 'mixed-removed')
+const mixedDuplicates128 = mixedLive512.slice(0, 128).map((value, index) => ({
+  __uuidv7: value.__uuidv7,
   name: `mixed-duplicate-${index}`,
   group: index % 16,
   index,
@@ -94,34 +109,36 @@ const mixedSnapshot = createSnapshot(
     ...mixedDuplicates128,
     { __uuidv7: 'bad', name: 'invalid', group: -1, index: -1 },
   ],
-  ['bad', ...mixedRemoved128.map((entry) => entry.__uuidv7)]
+  ['bad', ...mixedRemoved128.map((value) => value.__uuidv7)]
 )
 const hasSet = new ORSet(snapshot512)
 const hasLive = hasSet.values()[256]
-const hasMiss = createEntry(4096, 'miss')
+const hasMiss = createValue(4096, 'miss')
 const valuesSet = new ORSet(snapshot512)
 const snapshotSet = new ORSet(snapshot512)
+const tombstoneReadSet = new ORSet(snapshot512)
+tombstoneReadSet.clear()
 const duplicateSet = new ORSet()
-const duplicateEntry = createEntry(0, 'duplicate')
-duplicateSet.append(duplicateEntry)
+const duplicateValue = createValue(0, 'duplicate')
+duplicateSet.append(duplicateValue)
 const removeNoopSet = new ORSet()
-const removeNoopEntry = createEntry(0, 'remove-noop')
-removeNoopSet.remove(removeNoopEntry)
+const removeNoopValue = createValue(0, 'remove-noop')
+removeNoopSet.remove(removeNoopValue)
 const clearNoopSet = new ORSet()
 const mergeDuplicateSet = new ORSet(snapshot512)
 const mergeListenerSnapshot = createSnapshot(
-  createEntries(256, 'merge-listener')
+  createValues(256, 'merge-listener')
 )
 const mergeDuplicateSnapshot = createSnapshot(mergeDuplicateSet.values())
 const mergeRemoveSnapshot = createSnapshot(
   [],
-  live512.map((entry) => entry.__uuidv7)
+  live512.map((value) => value.__uuidv7)
 )
-const mergeMixedBaseEntries = createEntries(512, 'merge-base')
-const mergeMixedBaseSnapshot = createSnapshot(mergeMixedBaseEntries)
+const mergeMixedBaseValues = createValues(512, 'merge-base')
+const mergeMixedBaseSnapshot = createSnapshot(mergeMixedBaseValues)
 const mergeMixedSnapshot = createSnapshot(
-  createEntries(512, 'merge-incoming'),
-  mergeMixedBaseEntries.slice(0, 256).map((entry) => entry.__uuidv7)
+  createValues(512, 'merge-incoming'),
+  mergeMixedBaseValues.slice(0, 256).map((value) => value.__uuidv7)
 )
 const appendWithListenersListener = () => {}
 
@@ -152,8 +169,11 @@ bench('has miss', 200000, () => {
 bench('values x512', 5000, () => {
   valuesSet.values()
 })
+bench('tombstones x512', 200000, () => {
+  tombstoneReadSet.tombstones()
+})
 bench('snapshot x512', 5000, () => {
-  snapshotSet.snapshot()
+  readSnapshot(snapshotSet)
 })
 
 section('Write Paths')
@@ -163,18 +183,18 @@ bench('append fresh', 50000, () => {
 })
 bench('append valid uuid', 50000, () => {
   const set = new ORSet()
-  set.append(duplicateEntry)
+  set.append(duplicateValue)
 })
 bench('append duplicate noop', 200000, () => {
-  duplicateSet.append(duplicateEntry)
+  duplicateSet.append(duplicateValue)
 })
 bench('append tomb regen', 20000, () => {
   const set = new ORSet()
-  const entry = createEntry(0, 'tomb')
-  set.append(entry)
-  set.remove(entry)
+  const value = createValue(0, 'tomb')
+  set.append(value)
+  set.remove(value)
   set.append({
-    __uuidv7: entry.__uuidv7,
+    __uuidv7: value.__uuidv7,
     name: 'tomb-regenerated',
     group: 0,
     index: 1,
@@ -182,18 +202,18 @@ bench('append tomb regen', 20000, () => {
 })
 bench('append batch x256', 300, () => {
   const set = new ORSet()
-  for (const entry of appendBatch256) set.append(entry)
+  for (const value of appendBatch256) set.append(value)
 })
 bench('remove live', 50000, () => {
   const set = new ORSet(oneLiveSnapshot)
-  set.remove(oneLiveEntry)
+  set.remove(oneLiveValue)
 })
 bench('remove ghost tomb', 50000, () => {
   const set = new ORSet()
   set.remove(hasMiss)
 })
 bench('remove tomb noop', 200000, () => {
-  removeNoopSet.remove(removeNoopEntry)
+  removeNoopSet.remove(removeNoopValue)
 })
 bench('clear noop', 200000, () => {
   clearNoopSet.clear()
@@ -201,6 +221,12 @@ bench('clear noop', 200000, () => {
 bench('clear x512', 2000, () => {
   const set = new ORSet(snapshot512)
   set.clear()
+})
+bench('gc delete x512 tombstones', 1500, () => {
+  const set = new ORSet(snapshot512)
+  set.clear()
+  const tombstones = set.tombstones()
+  for (const tombstone of [...tombstones]) tombstones.delete(tombstone)
 })
 
 section('Merge And Replication')
@@ -226,8 +252,8 @@ bench('merge duplicate noop', 5000, () => {
 bench('replica roundtrip x256', 1500, () => {
   const a = new ORSet(snapshot256)
   const b = new ORSet()
-  b.merge(a.snapshot())
-  a.merge(b.snapshot())
+  b.merge(readSnapshot(a))
+  a.merge(readSnapshot(b))
 })
 
 section('Event Overhead')
@@ -239,13 +265,11 @@ bench('listener add/remove', 200000, () => {
 bench('append with listeners', 30000, () => {
   const set = new ORSet()
   set.addEventListener('delta', appendWithListenersListener)
-  set.addEventListener('snapshot', appendWithListenersListener)
   set.append(createAppendInput(0, 'eventful'))
 })
 bench('merge with listeners x256', 2000, () => {
   const set = new ORSet()
   set.addEventListener('merge', appendWithListenersListener)
-  set.addEventListener('snapshot', appendWithListenersListener)
   set.merge(mergeListenerSnapshot)
 })
 

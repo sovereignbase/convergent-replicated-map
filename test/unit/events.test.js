@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { ORSet } from '../../dist/index.js'
+import { readSnapshot } from '../shared/orset.mjs'
 
 test('event listener object handleEvent receives delta detail', () => {
   const set = new ORSet()
@@ -14,8 +15,8 @@ test('event listener object handleEvent receives delta detail', () => {
 
   set.append({ name: 'alice' })
 
-  assert.equal(detail.items.length, 1)
-  assert.equal(detail.tombs.length, 0)
+  assert.equal(detail.values.length, 1)
+  assert.equal(detail.tombstones.length, 0)
 })
 
 test('removeEventListener stops a function listener', () => {
@@ -43,7 +44,7 @@ test('removeEventListener stops an object listener', () => {
 
   set.addEventListener('snapshot', listener)
   set.removeEventListener('snapshot', listener)
-  set.append({ name: 'alice' })
+  set.snapshot()
 
   assert.equal(calls, 0)
 })
@@ -68,29 +69,32 @@ test('event channels remain independent across append remove clear and merge', (
   local.remove(alice)
   local.clear()
   remote.append({ name: 'bob' })
-  local.merge(remote.snapshot())
+  local.merge(readSnapshot(remote))
 
   assert.deepEqual(counts, {
     delta: 2,
-    snapshot: 3,
+    snapshot: 0,
     merge: 1,
   })
 })
 
-test('snapshot listeners observe the latest state after each mutation', () => {
+test('snapshot listeners observe the latest state when requested', () => {
   const local = new ORSet()
   const remote = new ORSet()
   const seenSizes = []
 
   local.addEventListener('snapshot', (event) => {
-    seenSizes.push(event.detail.items.length)
+    seenSizes.push(event.detail.values.length)
   })
 
   local.append({ name: 'alice' })
+  local.snapshot()
   const [alice] = local.values()
   local.remove(alice)
+  local.snapshot()
   remote.append({ name: 'bob' })
-  local.merge(remote.snapshot())
+  local.merge(readSnapshot(remote))
+  local.snapshot()
 
   assert.deepEqual(seenSizes, [1, 0, 1])
 })

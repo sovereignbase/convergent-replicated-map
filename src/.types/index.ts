@@ -1,17 +1,17 @@
-export type ORSetEntry<T> = Omit<T, '__uuidv7'> & { __uuidv7: string }
-export type ORSetAppendInput<T> = Omit<ORSetEntry<T>, '__uuidv7'> &
-  Partial<Pick<ORSetEntry<T>, '__uuidv7'>>
+export type ORSetValue<T> = Omit<T, '__uuidv7'> & { __uuidv7: string }
+export type ORSetAppendInput<T> = Omit<ORSetValue<T>, '__uuidv7'> &
+  Partial<Pick<ORSetValue<T>, '__uuidv7'>>
 export type ORSetState<T> = {
-  items: Record<string, Readonly<ORSetEntry<T>>>
-  tombs: Set<string>
+  values: Record<string, Readonly<ORSetValue<T>>>
+  tombstones: Set<string>
 }
 export type ORSetSnapshot<T> = {
-  items: Array<Readonly<ORSetEntry<T>>>
-  tombs: Array<string>
+  values: Array<Readonly<ORSetValue<T>>>
+  tombstones: Array<string>
 }
 export type ORSetMergeResult<T> = {
   removals: Array<string>
-  additions: Array<Readonly<ORSetEntry<T>>>
+  additions: Array<Readonly<ORSetValue<T>>>
 }
 
 export type ORSetEventMap<T> = {

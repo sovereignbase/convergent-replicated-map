@@ -8,7 +8,7 @@ import {
 
 test('constructor malformed snapshot errors expose code name and explicit message', () => {
   assert.throws(
-    () => new ORSet({ items: 'bad', tombs: [] }),
+    () => new ORSet({ values: 'bad', tombstones: [] }),
     (error) => {
       assertBadSnapshotError(error)
       assert.match(error.message, /Malformed snapshot\./)
@@ -21,7 +21,7 @@ test('merge malformed snapshot errors expose code name and explicit message', ()
   const set = new ORSet()
 
   assert.throws(
-    () => set.merge({ items: [], tombs: 'bad' }),
+    () => set.merge({ values: [], tombstones: 'bad' }),
     (error) => {
       assertBadSnapshotError(error)
       assert.match(error.message, /Malformed snapshot\./)

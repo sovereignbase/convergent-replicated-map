@@ -41,6 +41,19 @@ export function createValidUuid(seed = 'seed') {
   return set.values()[0].__uuidv7
 }
 
+export function readSnapshot(set) {
+  let snapshot
+  const listener = (event) => {
+    snapshot = event.detail
+  }
+
+  set.addEventListener('snapshot', listener, { once: true })
+  assert.equal(set.snapshot(), undefined)
+  assert.ok(snapshot)
+
+  return snapshot
+}
+
 export function sortStrings(values) {
   return [...values].sort()
 }

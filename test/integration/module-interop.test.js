@@ -2,13 +2,13 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createRequire } from 'node:module'
 import { ORSet as ORSetEsm } from '../../dist/index.js'
-import { cloneSnapshot, sortStrings } from '../shared/orset.mjs'
+import { cloneSnapshot, readSnapshot, sortStrings } from '../shared/orset.mjs'
 
 const require = createRequire(import.meta.url)
 const { ORSet: ORSetCjs } = require('../../dist/index.cjs')
 
 function sortedSnapshotIds(set) {
-  return sortStrings(set.snapshot().items.map((item) => item.__uuidv7))
+  return sortStrings(readSnapshot(set).values.map((value) => value.__uuidv7))
 }
 
 test('esm and cjs builds interoperate via snapshots in both directions', () => {
@@ -16,9 +16,9 @@ test('esm and cjs builds interoperate via snapshots in both directions', () => {
   const cjs = new ORSetCjs()
 
   esm.append({ role: 'admin' })
-  cjs.merge(esm.snapshot())
+  cjs.merge(readSnapshot(esm))
   cjs.append({ role: 'editor' })
-  esm.merge(cjs.snapshot())
+  esm.merge(readSnapshot(cjs))
 
   assert.equal(esm.size, 2)
   assert.equal(cjs.size, 2)
@@ -36,7 +36,7 @@ test('json cloned snapshots roundtrip across builds', () => {
   const esm = new ORSetEsm()
   esm.append({ role: 'admin' })
 
-  const cjs = new ORSetCjs(cloneSnapshot(esm.snapshot()))
+  const cjs = new ORSetCjs(cloneSnapshot(readSnapshot(esm)))
 
   assert.equal(cjs.size, 1)
   assert.equal(cjs.values()[0].role, 'admin')

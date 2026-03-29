@@ -53,6 +53,22 @@ export async function runORSetSuite(api, options = {}) {
     return set.values()[0].__uuidv7
   }
 
+  function readSnapshot(set) {
+    let snapshot
+
+    set.addEventListener(
+      'snapshot',
+      (event) => {
+        snapshot = event.detail
+      },
+      { once: true }
+    )
+    assertEqual(set.snapshot(), undefined)
+    assert(snapshot, 'expected snapshot detail')
+
+    return snapshot
+  }
+
   function assertBadSnapshotError(error) {
     assert(error, 'expected an error')
     assertEqual(error.name, 'ORSetError', 'expected ORSetError name')
@@ -105,7 +121,7 @@ export async function runORSetSuite(api, options = {}) {
     const set = new ORSet()
     assertEqual(set.size, 0)
     assertJsonEqual(set.values(), [])
-    assertJsonEqual(set.snapshot(), { items: [], tombs: [] })
+    assertJsonEqual(readSnapshot(set), { values: [], tombstones: [] })
   })
 
   await runTest('constructor rejects malformed snapshot', () => {
@@ -113,18 +129,18 @@ export async function runORSetSuite(api, options = {}) {
   })
 
   await runTest(
-    'constructor filters invalid tombs duplicate ids and tombed items',
+    'constructor filters invalid tombstones duplicate ids and tombstoned values',
     () => {
       const liveId = createValidUuid('live')
       const removedId = createValidUuid('removed')
       const set = new ORSet({
-        items: [
+        values: [
           { __uuidv7: liveId, name: 'first' },
           { __uuidv7: liveId, name: 'second' },
           { __uuidv7: removedId, name: 'removed' },
           { __uuidv7: 'bad', name: 'invalid' },
         ],
-        tombs: ['bad', removedId],
+        tombstones: ['bad', removedId],
       })
 
       assertEqual(set.size, 1)
@@ -132,7 +148,7 @@ export async function runORSetSuite(api, options = {}) {
         set.values().map((item) => item.name),
         ['first']
       )
-      assertJsonEqual(set.snapshot().tombs, [removedId])
+      assertJsonEqual(readSnapshot(set).tombstones, [removedId])
     }
   )
 
@@ -147,7 +163,7 @@ export async function runORSetSuite(api, options = {}) {
     )
   })
 
-  await runTest('append generates uuid freezes entry and emits events', () => {
+  await runTest('append generates uuid freezes value and emits events', () => {
     const set = new ORSet()
     const events = captureEvents(set)
     set.append({ name: 'alice' })
@@ -157,8 +173,8 @@ export async function runORSetSuite(api, options = {}) {
     assertEqual(typeof stored.__uuidv7, 'string')
     assertEqual(Object.isFrozen(stored), true)
     assertEqual(events.delta.length, 1)
-    assertEqual(events.snapshot.length, 1)
-    assertEqual(events.delta[0].items[0].__uuidv7, stored.__uuidv7)
+    assertEqual(events.snapshot.length, 0)
+    assertEqual(events.delta[0].values[0].__uuidv7, stored.__uuidv7)
   })
 
   await runTest('append preserves a valid supplied free uuid', () => {
@@ -198,7 +214,7 @@ export async function runORSetSuite(api, options = {}) {
     assert(set.values()[0].__uuidv7 !== removed.__uuidv7, 'expected new uuid')
   })
 
-  await runTest('clear removes every live item', () => {
+  await runTest('clear removes every live value', () => {
     const set = new ORSet()
     set.append({ name: 'alice' })
     set.append({ name: 'bob' })
@@ -207,9 +223,12 @@ export async function runORSetSuite(api, options = {}) {
     set.clear()
 
     assertEqual(set.size, 0)
-    assertJsonEqual(sortStrings(set.snapshot().tombs), sortStrings(liveIds))
     assertEqual(events.delta.length, 1)
-    assertEqual(events.snapshot.length, 1)
+    assertEqual(events.snapshot.length, 0)
+    assertJsonEqual(
+      sortStrings(readSnapshot(set).tombstones),
+      sortStrings(liveIds)
+    )
   })
 
   await runTest('clear stays silent on empty state', () => {
@@ -240,9 +259,9 @@ export async function runORSetSuite(api, options = {}) {
     set.remove(live)
 
     assertEqual(set.size, 0)
-    assertJsonEqual(set.snapshot().tombs, [live.__uuidv7])
     assertEqual(events.delta.length, 1)
-    assertEqual(events.snapshot.length, 1)
+    assertEqual(events.snapshot.length, 0)
+    assertJsonEqual(readSnapshot(set).tombstones, [live.__uuidv7])
   })
 
   await runTest(
@@ -253,9 +272,9 @@ export async function runORSetSuite(api, options = {}) {
       const events = captureEvents(set)
       set.remove({ __uuidv7: ghostId, name: 'ghost' })
 
-      assertJsonEqual(set.snapshot().tombs, [ghostId])
       assertEqual(events.delta.length, 1)
-      assertEqual(events.snapshot.length, 1)
+      assertEqual(events.snapshot.length, 0)
+      assertJsonEqual(readSnapshot(set).tombstones, [ghostId])
     }
   )
 
@@ -270,36 +289,36 @@ export async function runORSetSuite(api, options = {}) {
     const [live] = source.values()
     const target = new ORSet()
     const events = captureEvents(target)
-    target.merge(source.snapshot())
+    target.merge(readSnapshot(source))
 
     assertEqual(target.size, 1)
     assertEqual(target.values()[0].__uuidv7, live.__uuidv7)
     assertEqual(events.merge.length, 1)
-    assertEqual(events.snapshot.length, 1)
+    assertEqual(events.snapshot.length, 0)
   })
 
   await runTest('merge applies tomb removals', () => {
     const removedId = createValidUuid('removed')
     const target = new ORSet({
-      items: [{ __uuidv7: removedId, name: 'removed' }],
-      tombs: [],
+      values: [{ __uuidv7: removedId, name: 'removed' }],
+      tombstones: [],
     })
     const events = captureEvents(target)
-    target.merge({ items: [], tombs: [removedId] })
+    target.merge({ values: [], tombstones: [removedId] })
 
     assertEqual(target.size, 0)
-    assertJsonEqual(target.snapshot().tombs, [removedId])
+    assertJsonEqual(readSnapshot(target).tombstones, [removedId])
     assertEqual(events.merge.length, 1)
   })
 
   await runTest('merge skips invalid data and stays silent on no-op', () => {
     const target = new ORSet()
     const knownTomb = createValidUuid('known')
-    target.merge({ items: [], tombs: [knownTomb] })
+    target.merge({ values: [], tombstones: [knownTomb] })
     const events = captureEvents(target)
     target.merge({
-      items: [{ __uuidv7: 'bad', name: 'invalid' }],
-      tombs: ['bad', knownTomb],
+      values: [{ __uuidv7: 'bad', name: 'invalid' }],
+      tombstones: ['bad', knownTomb],
     })
 
     assertEqual(events.merge.length, 0)
@@ -308,11 +327,11 @@ export async function runORSetSuite(api, options = {}) {
 
   await runTest('merge does not resurrect tombstoned uuid', () => {
     const tombedId = createValidUuid('tombed')
-    const target = new ORSet({ items: [], tombs: [tombedId] })
+    const target = new ORSet({ values: [], tombstones: [tombedId] })
     const events = captureEvents(target)
     target.merge({
-      items: [{ __uuidv7: tombedId, name: 'zombie' }],
-      tombs: [],
+      values: [{ __uuidv7: tombedId, name: 'zombie' }],
+      tombstones: [],
     })
 
     assertEqual(target.size, 0)
@@ -326,11 +345,11 @@ export async function runORSetSuite(api, options = {}) {
     source.append({ name: 'added' })
     const [added] = source.values()
     const target = new ORSet({
-      items: [{ __uuidv7: removedId, name: 'removed' }],
-      tombs: [],
+      values: [{ __uuidv7: removedId, name: 'removed' }],
+      tombstones: [],
     })
     const events = captureEvents(target)
-    target.merge({ items: [added], tombs: [removedId] })
+    target.merge({ values: [added], tombstones: [removedId] })
 
     assertEqual(target.size, 1)
     assertEqual(target.values()[0].__uuidv7, added.__uuidv7)
@@ -345,12 +364,41 @@ export async function runORSetSuite(api, options = {}) {
   await runTest('snapshot returns detached arrays', () => {
     const set = new ORSet()
     set.append({ name: 'alice' })
-    const snapshot = set.snapshot()
-    snapshot.items.push({ __uuidv7: createValidUuid('other'), name: 'other' })
-    snapshot.tombs.push(createValidUuid('ghost'))
+    const snapshot = readSnapshot(set)
+    snapshot.values.push({ __uuidv7: createValidUuid('other'), name: 'other' })
+    snapshot.tombstones.push(createValidUuid('ghost'))
 
-    assertEqual(set.snapshot().items.length, 1)
-    assertEqual(set.snapshot().tombs.length, 0)
+    assertEqual(readSnapshot(set).values.length, 1)
+    assertEqual(readSnapshot(set).tombstones.length, 0)
+  })
+
+  await runTest('tombstones exposes a live set for external gc', () => {
+    const set = new ORSet()
+    set.append({ name: 'alice' })
+    const [removed] = set.values()
+    set.remove(removed)
+
+    const tombstones = set.tombstones()
+
+    assert(
+      tombstones &&
+        typeof tombstones.has === 'function' &&
+        typeof tombstones.delete === 'function' &&
+        typeof tombstones.values === 'function',
+      'expected set-like tomb view'
+    )
+    assert(
+      tombstones.has(removed.__uuidv7),
+      'expected removed uuid in tombstone set'
+    )
+
+    tombstones.delete(removed.__uuidv7)
+
+    assertEqual(readSnapshot(set).tombstones.length, 0)
+
+    set.append({ __uuidv7: removed.__uuidv7, name: 'alice-again' })
+
+    assertEqual(set.values()[0].__uuidv7, removed.__uuidv7)
   })
 
   await runTest('listener object and removeEventListener both work', () => {
@@ -369,9 +417,11 @@ export async function runORSetSuite(api, options = {}) {
     set.addEventListener('delta', objectListener)
     set.addEventListener('snapshot', fnListener)
     set.append({ name: 'alice' })
+    set.snapshot()
     set.removeEventListener('delta', objectListener)
     set.removeEventListener('snapshot', fnListener)
     set.append({ name: 'bob' })
+    set.snapshot()
 
     assertEqual(objectCalls, 1)
     assertEqual(fnCalls, 1)
@@ -384,21 +434,21 @@ export async function runORSetSuite(api, options = {}) {
       const b = new ORSet()
       a.append({ name: 'alice' })
       a.append({ name: 'bob' })
-      b.merge(a.snapshot())
+      b.merge(readSnapshot(a))
 
       const alice = a.values().find((item) => item.name === 'alice')
       a.remove(alice)
-      b.merge(a.snapshot())
-      a.merge(b.snapshot())
+      b.merge(readSnapshot(a))
+      a.merge(readSnapshot(b))
 
       assertEqual(a.size, b.size)
       assertJsonEqual(
-        sortStrings(a.snapshot().items.map((item) => item.__uuidv7)),
-        sortStrings(b.snapshot().items.map((item) => item.__uuidv7))
+        sortStrings(readSnapshot(a).values.map((value) => value.__uuidv7)),
+        sortStrings(readSnapshot(b).values.map((value) => value.__uuidv7))
       )
       assertJsonEqual(
-        sortStrings(a.snapshot().tombs),
-        sortStrings(b.snapshot().tombs)
+        sortStrings(readSnapshot(a).tombstones),
+        sortStrings(readSnapshot(b).tombstones)
       )
     }
   )

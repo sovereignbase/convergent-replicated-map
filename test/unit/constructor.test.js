@@ -1,14 +1,18 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { ORSet } from '../../dist/index.js'
-import { assertBadSnapshotError, createValidUuid } from '../shared/orset.mjs'
+import {
+  assertBadSnapshotError,
+  createValidUuid,
+  readSnapshot,
+} from '../shared/orset.mjs'
 
 test('constructor starts empty without snapshot', () => {
   const set = new ORSet()
 
   assert.equal(set.size, 0)
   assert.deepEqual(set.values(), [])
-  assert.deepEqual(set.snapshot(), { items: [], tombs: [] })
+  assert.deepEqual(readSnapshot(set), { values: [], tombstones: [] })
 })
 
 test('constructor rejects explicit null snapshot', () => {
@@ -19,26 +23,26 @@ test('constructor rejects explicit false snapshot', () => {
   assert.throws(() => new ORSet(false), assertBadSnapshotError)
 })
 
-test('constructor rejects snapshot missing items array', () => {
-  assert.throws(() => new ORSet({ tombs: [] }), assertBadSnapshotError)
+test('constructor rejects snapshot missing values array', () => {
+  assert.throws(() => new ORSet({ tombstones: [] }), assertBadSnapshotError)
 })
 
-test('constructor rejects snapshot missing tombs array', () => {
-  assert.throws(() => new ORSet({ items: [] }), assertBadSnapshotError)
+test('constructor rejects snapshot missing tombstones array', () => {
+  assert.throws(() => new ORSet({ values: [] }), assertBadSnapshotError)
 })
 
-test('constructor filters invalid tombs, tombed items, duplicate live ids, and invalid items', () => {
+test('constructor filters invalid tombstones, tombstoned values, duplicate live ids, and invalid values', () => {
   const liveId = createValidUuid('live')
   const removedId = createValidUuid('removed')
 
   const set = new ORSet({
-    items: [
+    values: [
       { __uuidv7: liveId, name: 'first' },
       { __uuidv7: liveId, name: 'second' },
       { __uuidv7: removedId, name: 'removed' },
       { __uuidv7: 'bad', name: 'invalid' },
     ],
-    tombs: ['bad', removedId],
+    tombstones: ['bad', removedId],
   })
 
   assert.equal(set.size, 1)
@@ -46,15 +50,15 @@ test('constructor filters invalid tombs, tombed items, duplicate live ids, and i
     set.values().map((item) => item.name),
     ['first']
   )
-  assert.deepEqual(set.snapshot().tombs, [removedId])
+  assert.deepEqual(readSnapshot(set).tombstones, [removedId])
 })
 
-test('constructor freezes accepted snapshot entries', () => {
+test('constructor freezes accepted snapshot values', () => {
   const liveId = createValidUuid('live')
 
   const set = new ORSet({
-    items: [{ __uuidv7: liveId, name: 'live' }],
-    tombs: [],
+    values: [{ __uuidv7: liveId, name: 'live' }],
+    tombstones: [],
   })
 
   assert.equal(Object.isFrozen(set.values()[0]), true)
@@ -72,14 +76,14 @@ test('has returns true only for live uuids', () => {
   )
 })
 
-test('snapshot returns detached arrays', () => {
+test('snapshot dispatches detached arrays', () => {
   const set = new ORSet()
   set.append({ name: 'alice' })
-  const snapshot = set.snapshot()
+  const snapshot = readSnapshot(set)
 
-  snapshot.items.push({ __uuidv7: createValidUuid('other'), name: 'other' })
-  snapshot.tombs.push(createValidUuid('ghost'))
+  snapshot.values.push({ __uuidv7: createValidUuid('other'), name: 'other' })
+  snapshot.tombstones.push(createValidUuid('ghost'))
 
-  assert.equal(set.snapshot().items.length, 1)
-  assert.equal(set.snapshot().tombs.length, 0)
+  assert.equal(readSnapshot(set).values.length, 1)
+  assert.equal(readSnapshot(set).tombstones.length, 0)
 })

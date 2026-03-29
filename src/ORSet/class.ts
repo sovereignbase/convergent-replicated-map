@@ -2,7 +2,7 @@ import { v7 as uuidv7, version as uuidVersion } from 'uuid'
 import type {
   ORSetAppendInput,
   ORSetEventListenerFor,
-  ORSetEntry,
+  ORSetValue,
   ORSetMergeResult,
   ORSetSnapshot,
   ORSetState,
@@ -17,136 +17,127 @@ export class ORSet<T> {
   /***/
   constructor(snapshot?: ORSetSnapshot<T>) {
     this.size = 0
-    this.state = { items: {}, tombs: new Set([]) }
+    this.state = { values: {}, tombstones: new Set([]) }
     if (snapshot !== undefined) {
       if (!validateORSetSnapshot(snapshot)) {
         throw new ORSetError('BAD_SNAPSHOT', 'Malformed snapshot.')
       }
-      for (const tomb of snapshot.tombs) {
-        if (!this.isUuidV7(tomb)) continue
-        this.state.tombs.add(tomb)
+      for (const tombstone of snapshot.tombstones) {
+        if (!this.isUuidV7(tombstone)) continue
+        this.state.tombstones.add(tombstone)
       }
-      for (const item of snapshot.items) {
-        const v7 = item.__uuidv7
+      for (const value of snapshot.values) {
+        const v7 = value.__uuidv7
         if (!this.isUuidV7(v7)) continue
-        if (!this.state.tombs.has(v7) && !Object.hasOwn(this.state.items, v7)) {
-          this.state.items[v7] = Object.freeze(item)
+        if (
+          !this.state.tombstones.has(v7) &&
+          !Object.hasOwn(this.state.values, v7)
+        ) {
+          this.state.values[v7] = Object.freeze(value)
           this.size++
         }
       }
     }
   }
   /***/
-  has(value: ORSetEntry<T>): boolean {
-    return Object.hasOwn(this.state.items, value.__uuidv7)
+  has(value: ORSetValue<T>): boolean {
+    return Object.hasOwn(this.state.values, value.__uuidv7)
   }
   /***/
-  append(entry: ORSetAppendInput<T>): void {
-    const v7 = entry.__uuidv7 as string | undefined
-    if (this.isUuidV7(v7) && Object.hasOwn(this.state.items, v7)) return
+  append(value: ORSetAppendInput<T>): void {
+    const v7 = value.__uuidv7 as string | undefined
+    if (this.isUuidV7(v7) && Object.hasOwn(this.state.values, v7)) return
 
-    const frozenEntry = Object.freeze(
-      this.isUuidV7(v7) && !this.state.tombs.has(v7)
-        ? (entry as unknown as ORSetEntry<T>)
-        : ({ ...entry, __uuidv7: uuidv7() } as ORSetEntry<T>)
+    const frozenValue = Object.freeze(
+      this.isUuidV7(v7) && !this.state.tombstones.has(v7)
+        ? (value as unknown as ORSetValue<T>)
+        : ({ ...value, __uuidv7: uuidv7() } as ORSetValue<T>)
     )
-    const nextV7 = frozenEntry.__uuidv7
-    this.state.items[nextV7] = frozenEntry
+    const nextV7 = frozenValue.__uuidv7
+    this.state.values[nextV7] = frozenValue
     this.size++
     this.eventTarget.dispatchEvent(
       new CustomEvent<ORSetSnapshot<T>>('delta', {
         detail: {
-          tombs: [],
-          items: [frozenEntry],
+          tombstones: [],
+          values: [frozenValue],
         },
-      })
-    )
-    this.eventTarget.dispatchEvent(
-      new CustomEvent<ORSetSnapshot<T>>('snapshot', {
-        detail: this.snapshot(),
       })
     )
   }
   /***/
   clear(): void {
     if (this.size === 0) return
-    const egressTombs = []
-    for (const v7 of Object.keys(this.state.items)) {
-      this.state.tombs.add(v7)
-      delete this.state.items[v7]
-      egressTombs.push(v7)
+    const egressTombstones = []
+    for (const v7 of Object.keys(this.state.values)) {
+      this.state.tombstones.add(v7)
+      delete this.state.values[v7]
+      egressTombstones.push(v7)
     }
     this.size = 0
     this.eventTarget.dispatchEvent(
       new CustomEvent<ORSetSnapshot<T>>('delta', {
         detail: {
-          tombs: egressTombs,
-          items: [],
+          tombstones: egressTombstones,
+          values: [],
         },
-      })
-    )
-    this.eventTarget.dispatchEvent(
-      new CustomEvent<ORSetSnapshot<T>>('snapshot', {
-        detail: this.snapshot(),
       })
     )
   }
   /***/
-  remove(entry: ORSetEntry<T>): void {
-    const v7 = entry.__uuidv7
+  remove(value: ORSetValue<T>): void {
+    const v7 = value.__uuidv7
     if (!this.isUuidV7(v7)) return
-    const hadItem = Object.hasOwn(this.state.items, v7)
-    const hadTomb = this.state.tombs.has(v7)
-    if (!hadItem && hadTomb) return
-    this.state.tombs.add(v7)
-    delete this.state.items[v7]
+    const hadItem = Object.hasOwn(this.state.values, v7)
+    const hadTombstone = this.state.tombstones.has(v7)
+    if (!hadItem && hadTombstone) return
+    this.state.tombstones.add(v7)
+    delete this.state.values[v7]
     if (hadItem) this.size--
     this.eventTarget.dispatchEvent(
       new CustomEvent<ORSetSnapshot<T>>('delta', {
         detail: {
-          tombs: [v7],
-          items: [],
+          tombstones: [v7],
+          values: [],
         },
       })
     )
-    this.eventTarget.dispatchEvent(
-      new CustomEvent<ORSetSnapshot<T>>('snapshot', {
-        detail: this.snapshot(),
-      })
-    )
   }
   /***/
-  values(): Array<Readonly<ORSetEntry<T>>> {
-    return Object.values(this.state.items)
+  values(): Array<Readonly<ORSetValue<T>>> {
+    return Object.values(this.state.values)
   }
   /***/
   tombstones(): Set<string> {
-    return this.state.tombs
+    return this.state.tombstones
   }
   /***/
   merge(ingress: ORSetSnapshot<T>) {
-    const additions: Array<Readonly<ORSetEntry<T>>> = []
+    const additions: Array<Readonly<ORSetValue<T>>> = []
     const removals: Array<string> = []
     if (!validateORSetSnapshot(ingress)) {
       throw new ORSetError('BAD_SNAPSHOT', 'Malformed snapshot.')
     }
 
-    for (const tomb of ingress.tombs) {
-      if (this.state.tombs.has(tomb)) continue
-      if (!this.isUuidV7(tomb)) continue
-      const hadItem = Object.hasOwn(this.state.items, tomb)
-      this.state.tombs.add(tomb)
-      delete this.state.items[tomb]
+    for (const tombstone of ingress.tombstones) {
+      if (this.state.tombstones.has(tombstone)) continue
+      if (!this.isUuidV7(tombstone)) continue
+      const hadItem = Object.hasOwn(this.state.values, tombstone)
+      this.state.tombstones.add(tombstone)
+      delete this.state.values[tombstone]
       if (hadItem) this.size--
-      removals.push(tomb)
+      removals.push(tombstone)
     }
-    for (const entry of ingress.items) {
-      const v7 = entry.__uuidv7
+    for (const value of ingress.values) {
+      const v7 = value.__uuidv7
       if (!this.isUuidV7(v7)) continue
-      if (!this.state.tombs.has(v7) && !Object.hasOwn(this.state.items, v7)) {
-        this.state.items[v7] = Object.freeze(entry)
+      if (
+        !this.state.tombstones.has(v7) &&
+        !Object.hasOwn(this.state.values, v7)
+      ) {
+        this.state.values[v7] = Object.freeze(value)
         this.size++
-        additions.push(entry)
+        additions.push(value)
       }
     }
     if (additions.length === 0 && removals.length === 0) return
@@ -158,18 +149,17 @@ export class ORSet<T> {
         },
       })
     )
-    this.eventTarget.dispatchEvent(
-      new CustomEvent<ORSetSnapshot<T>>('snapshot', {
-        detail: this.snapshot(),
-      })
-    )
   }
   /***/
-  snapshot(): ORSetSnapshot<T> {
-    return {
-      items: Object.values(this.state.items),
-      tombs: Array.from(this.state.tombs.values()),
-    }
+  snapshot(): void {
+    this.eventTarget.dispatchEvent(
+      new CustomEvent<ORSetSnapshot<T>>('snapshot', {
+        detail: {
+          values: Object.values(this.state.values),
+          tombstones: Array.from(this.state.tombstones.values()),
+        },
+      })
+    )
   }
   /***/
   addEventListener<K extends string>(
