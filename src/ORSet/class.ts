@@ -1,4 +1,7 @@
-import { v7 as uuidv7, version as uuidVersion } from 'uuid'
+import {
+  v7 as uuidv7,
+  version as uuidVersion,
+} from 'uuid'
 import type {
   ORSetEventListenerFor,
   ORSetEntry,
@@ -19,12 +22,12 @@ export class ORSet<T> {
     if (snapshot) {
       if (validateORSetSnapshot(snapshot)) {
         for (const tomb of snapshot.tombs) {
-          if (uuidVersion(tomb) !== 7) continue
+          if (!this.isUuidV7(tomb)) continue
           this.state.tombs.add(tomb)
         }
         for (const item of snapshot.items) {
           const v7 = item.__uuidv7
-          if (uuidVersion(v7) !== 7) continue
+          if (!this.isUuidV7(v7)) continue
           if (!this.state.tombs.has(v7)) {
             this.state.items[v7] = Object.freeze(item)
             this.size++
@@ -40,7 +43,13 @@ export class ORSet<T> {
   /***/
   append(entry: ORSetEntry<T>): void {
     let v7 = entry.__uuidv7
-    if (uuidVersion(v7) !== 7) {
+    if (
+      !(
+        this.isUuidV7(v7) &&
+        !this.state.tombs.has(v7) &&
+        !Object.hasOwn(this.state.items, v7)
+      )
+    ) {
       v7 = uuidv7()
       entry.__uuidv7 = v7
     }
@@ -62,8 +71,8 @@ export class ORSet<T> {
       this.state.tombs.add(v7)
       delete this.state.items[v7]
       egressTombs.push(v7)
-      this.size--
     }
+    this.size = 0
     this.eventTarget.dispatchEvent(
       new CustomEvent<ORSetSnapshot<T>>('delta', {
         detail: {
@@ -76,9 +85,10 @@ export class ORSet<T> {
   /***/
   remove(entry: ORSetEntry<T>): void {
     const v7 = entry.__uuidv7
+    const hadItem = Object.hasOwn(this.state.items, v7)
     this.state.tombs.add(v7)
     delete this.state.items[v7]
-    this.size--
+    if (hadItem) this.size--
     this.eventTarget.dispatchEvent(
       new CustomEvent<ORSetSnapshot<T>>('delta', {
         detail: {
@@ -101,15 +111,20 @@ export class ORSet<T> {
 
     for (const tomb of ingress.tombs) {
       if (this.state.tombs.has(tomb)) continue
-      if (typeof tomb !== 'string' || uuidVersion(tomb) !== 7) continue
+      if (!this.isUuidV7(tomb)) continue
+      const hadItem = Object.hasOwn(this.state.items, tomb)
       this.state.tombs.add(tomb)
       delete this.state.items[tomb]
-      this.size--
+      if (hadItem) this.size--
       removals.push(tomb)
     }
     for (const entry of ingress.items) {
       const v7 = entry.__uuidv7
-      if (!this.state.tombs.has(v7) && !Object.hasOwn(this.state.items, v7)) {
+      if (
+        this.isUuidV7(v7) &&
+        !this.state.tombs.has(v7) &&
+        !Object.hasOwn(this.state.items, v7)
+      ) {
         this.state.items[v7] = Object.freeze(entry)
         this.size++
         additions.push(entry)
@@ -154,5 +169,14 @@ export class ORSet<T> {
       listener as EventListenerOrEventListenerObject | null,
       options
     )
+  }
+  /***/
+  private isUuidV7(value: unknown): value is string {
+    if (typeof value !== 'string') return false
+    try {
+      return uuidVersion(value) === 7
+    } catch {
+      return false
+    }
   }
 }
