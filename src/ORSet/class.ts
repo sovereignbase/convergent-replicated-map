@@ -1,5 +1,10 @@
 import { v7 as uuidv7, version as uuidVersion } from 'uuid'
-import type { ORSetEntry, ORSetSnapshot, ORSetState } from '../.types/index.js'
+import type {
+  ORSetEntry,
+  ORSetMergeResult,
+  ORSetSnapshot,
+  ORSetState,
+} from '../.types/index.js'
 import { validateORSetSnapshot } from './validateORSetSnapshot/index.js'
 
 export class ORSet<T> {
@@ -7,10 +12,12 @@ export class ORSet<T> {
     snapshot: Set<(snapshot: ORSetSnapshot<T>) => void>
     remove: Set<(delta: ORSetSnapshot<T>) => void>
     append: Set<(delta: ORSetSnapshot<T>) => void>
+    merge: Set<(merge: ORSetMergeResult<T>) => void>
   } = {
     snapshot: new Set(),
     remove: new Set(),
     append: new Set(),
+    merge: new Set(),
   }
   private state: ORSetState<T>
   public size: number
@@ -32,6 +39,10 @@ export class ORSet<T> {
     }
   }
   /***/
+  has(value: ORSetEntry<T>): boolean {
+    return Object.hasOwn(this.state.items, value.__uuidv7)
+  }
+  /***/
   append(entry: ORSetEntry<T>): void {
     const v7 = uuidv7()
     entry.__uuidv7 = v7
@@ -42,13 +53,6 @@ export class ORSet<T> {
         items: [entry],
       })
     }
-  }
-  /***/
-  has(value: ORSetEntry<T>): boolean {
-    if (this.state.tombs.has(value.__uuidv7)) {
-      return false
-    }
-    return this.state.items.has(value)
   }
   /***/
   clear(): void {
@@ -83,26 +87,55 @@ export class ORSet<T> {
   }
   /***/
   merge(ingress: ORSetSnapshot<T>) {
+    const additions: Array<Readonly<ORSetEntry<T>>> = []
+    const removals: Array<string> = []
     const valid = validateORSetSnapshot(ingress)
     if (!valid) return
 
     for (const tomb of ingress.tombs) {
+      if (this.state.tombs.has(tomb)) continue
       if (typeof tomb !== 'string' || uuidVersion(tomb) !== 7) continue
       this.state.tombs.add(tomb)
       delete this.state.items[tomb]
+      removals.push(tomb)
     }
-    const seen = new Set<string>()
-    const items = new Set<ORSetEntry<T>>()
-
     for (const entry of ingress.items) {
       const v7 = entry.__uuidv7
       if (!this.state.tombs.has(v7) && !Object.hasOwn(this.state.items, v7)) {
         this.state.items[v7] = entry
+        additions.push(entry)
       }
+    }
+    for (const listener of this.eventListeners.merge) {
+      listener({
+        additions,
+        removals,
+      })
     }
   }
   /***/
-  addEventListener() {}
+  snapshot(): ORSetSnapshot<T> {
+    return {
+      items: Object.values(this.state.items),
+      tombs: Array.from(this.state.tombs.values()),
+    }
+  }
   /***/
-  removeEventListener() {}
+  addEventListener(
+    type: keyof typeof this.eventListeners,
+    listener: () => void,
+    options?: {}
+  ) {
+    if (!(typeof listener === 'function')) return
+    this.eventListeners[type].add(listener)
+  }
+  /***/
+  removeEventListener(
+    type: keyof typeof this.eventListeners,
+    listener: () => void,
+    options?: {}
+  ) {
+    if (!(typeof listener === 'function')) return
+    this.eventListeners[type].delete(listener)
+  }
 }

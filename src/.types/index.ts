@@ -7,3 +7,7 @@ export type ORSetSnapshot<T> = {
   items: Array<ORSetEntry<T>>
   tombs: Array<string>
 }
+export type ORSetMergeResult<T> = {
+  removals: Array<string>
+  additions: Array<ORSetEntry<T>>
+}
