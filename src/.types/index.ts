@@ -11,3 +11,21 @@ export type ORSetMergeResult<T> = {
   removals: Array<string>
   additions: Array<ORSetEntry<T>>
 }
+
+export type ORSetEventMap<T> = {
+  snapshot: ORSetSnapshot<T>
+  delta: ORSetSnapshot<T>
+  merge: ORSetMergeResult<T>
+}
+
+export type ORSetEventListener<
+  T,
+  K extends keyof ORSetEventMap<T>,
+> =
+  | ((event: CustomEvent<ORSetEventMap<T>[K]>) => void)
+  | { handleEvent(event: CustomEvent<ORSetEventMap<T>[K]>): void }
+
+export type ORSetEventListenerFor<T, K extends string> =
+  K extends keyof ORSetEventMap<T>
+    ? ORSetEventListener<T, K>
+    : EventListenerOrEventListenerObject

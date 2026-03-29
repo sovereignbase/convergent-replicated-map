@@ -1,5 +1,6 @@
 import { v7 as uuidv7, version as uuidVersion } from 'uuid'
 import type {
+  ORSetEventListenerFor,
   ORSetEntry,
   ORSetMergeResult,
   ORSetSnapshot,
@@ -38,7 +39,7 @@ export class ORSet<T> {
     entry.__uuidv7 = v7
     this.state.items[v7] = entry
     this.eventTarget.dispatchEvent(
-      new CustomEvent('delta', {
+      new CustomEvent<ORSetSnapshot<T>>('delta', {
         detail: {
           tombs: [],
           items: [entry],
@@ -55,7 +56,7 @@ export class ORSet<T> {
       egressTombs.push(v7)
     }
     this.eventTarget.dispatchEvent(
-      new CustomEvent('delta', {
+      new CustomEvent<ORSetSnapshot<T>>('delta', {
         detail: {
           tombs: egressTombs,
           items: [],
@@ -69,7 +70,7 @@ export class ORSet<T> {
     this.state.tombs.add(v7)
     delete this.state.items[v7]
     this.eventTarget.dispatchEvent(
-      new CustomEvent('delta', {
+      new CustomEvent<ORSetSnapshot<T>>('delta', {
         detail: {
           tombs: [v7],
           items: [],
@@ -103,7 +104,7 @@ export class ORSet<T> {
       }
     }
     this.eventTarget.dispatchEvent(
-      new CustomEvent('merge', {
+      new CustomEvent<ORSetMergeResult<T>>('merge', {
         detail: {
           additions,
           removals,
@@ -119,19 +120,31 @@ export class ORSet<T> {
     }
   }
   /***/
-  addEventListener(
-    type: 'snapshot' | 'delta' | 'merge',
-    listener: EventListenerOrEventListenerObject | null,
+  addEventListener<K extends string>(
+    type: K,
+    listener: ORSetEventListenerFor<T, K> | null,
     options?: boolean | AddEventListenerOptions
-  ) {
-    this.eventTarget.addEventListener(type, listener, options)
+  ): void {
+    this.eventTarget.addEventListener(
+      type,
+      listener as EventListenerOrEventListenerObject | null,
+      options
+    )
   }
   /***/
-  removeEventListener(
-    type: 'snapshot' | 'delta' | 'merge',
-    listener: EventListenerOrEventListenerObject | null,
+  removeEventListener<K extends string>(
+    type: K,
+    listener: ORSetEventListenerFor<T, K> | null,
     options?: boolean | EventListenerOptions
-  ) {
-    this.eventTarget.removeEventListener(type, listener, options)
+  ): void {
+    this.eventTarget.removeEventListener(
+      type,
+      listener as EventListenerOrEventListenerObject | null,
+      options
+    )
   }
 }
+
+new ORSet<{ name: string; age: number }>().addEventListener('delta', (ev) => {
+  const { items, tombs } = ev.detail
+})
