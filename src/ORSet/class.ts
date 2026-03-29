@@ -1,14 +1,13 @@
-import {
-  v7 as uuidv7,
-  version as uuidVersion,
-} from 'uuid'
+import { v7 as uuidv7, version as uuidVersion } from 'uuid'
 import type {
+  ORSetAppendInput,
   ORSetEventListenerFor,
   ORSetEntry,
   ORSetMergeResult,
   ORSetSnapshot,
   ORSetState,
 } from '../.types/index.js'
+import { ORSetError } from '../.errors/class.js'
 import { validateORSetSnapshot } from './validateORSetSnapshot/index.js'
 
 export class ORSet<T> {
@@ -20,18 +19,19 @@ export class ORSet<T> {
     this.size = 0
     this.state = { items: {}, tombs: new Set([]) }
     if (snapshot) {
-      if (validateORSetSnapshot(snapshot)) {
-        for (const tomb of snapshot.tombs) {
-          if (!this.isUuidV7(tomb)) continue
-          this.state.tombs.add(tomb)
-        }
-        for (const item of snapshot.items) {
-          const v7 = item.__uuidv7
-          if (!this.isUuidV7(v7)) continue
-          if (!this.state.tombs.has(v7)) {
-            this.state.items[v7] = Object.freeze(item)
-            this.size++
-          }
+      if (!validateORSetSnapshot(snapshot)) {
+        throw new ORSetError('BAD_SNAPSHOT', 'Malformed snapshot.')
+      }
+      for (const tomb of snapshot.tombs) {
+        if (!this.isUuidV7(tomb)) continue
+        this.state.tombs.add(tomb)
+      }
+      for (const item of snapshot.items) {
+        const v7 = item.__uuidv7
+        if (!this.isUuidV7(v7)) continue
+        if (!this.state.tombs.has(v7)) {
+          this.state.items[v7] = Object.freeze(item)
+          this.size++
         }
       }
     }
@@ -41,26 +41,30 @@ export class ORSet<T> {
     return Object.hasOwn(this.state.items, value.__uuidv7)
   }
   /***/
-  append(entry: ORSetEntry<T>): void {
-    let v7 = entry.__uuidv7
-    if (
-      !(
-        this.isUuidV7(v7) &&
-        !this.state.tombs.has(v7) &&
-        !Object.hasOwn(this.state.items, v7)
-      )
-    ) {
-      v7 = uuidv7()
-      entry.__uuidv7 = v7
-    }
-    this.state.items[v7] = Object.freeze(entry)
+  append(entry: ORSetAppendInput<T>): void {
+    const v7 = entry.__uuidv7 as string | undefined
+    const nextV7 =
+      this.isUuidV7(v7) &&
+      !this.state.tombs.has(v7) &&
+      !Object.hasOwn(this.state.items, v7)
+        ? v7
+        : uuidv7()
+    const nextEntry = entry as unknown as ORSetEntry<T>
+    nextEntry.__uuidv7 = nextV7
+    const frozenEntry = Object.freeze(nextEntry)
+    this.state.items[nextV7] = frozenEntry
     this.size++
     this.eventTarget.dispatchEvent(
       new CustomEvent<ORSetSnapshot<T>>('delta', {
         detail: {
           tombs: [],
-          items: [entry],
+          items: [frozenEntry],
         },
+      })
+    )
+    this.eventTarget.dispatchEvent(
+      new CustomEvent<ORSetSnapshot<T>>('snapshot', {
+        detail: this.snapshot(),
       })
     )
   }
@@ -81,10 +85,16 @@ export class ORSet<T> {
         },
       })
     )
+    this.eventTarget.dispatchEvent(
+      new CustomEvent<ORSetSnapshot<T>>('snapshot', {
+        detail: this.snapshot(),
+      })
+    )
   }
   /***/
   remove(entry: ORSetEntry<T>): void {
     const v7 = entry.__uuidv7
+    if (!this.isUuidV7(v7)) return
     const hadItem = Object.hasOwn(this.state.items, v7)
     this.state.tombs.add(v7)
     delete this.state.items[v7]
@@ -97,6 +107,11 @@ export class ORSet<T> {
         },
       })
     )
+    this.eventTarget.dispatchEvent(
+      new CustomEvent<ORSetSnapshot<T>>('snapshot', {
+        detail: this.snapshot(),
+      })
+    )
   }
   /***/
   values(): Array<Readonly<ORSetEntry<T>>> {
@@ -106,8 +121,9 @@ export class ORSet<T> {
   merge(ingress: ORSetSnapshot<T>) {
     const additions: Array<Readonly<ORSetEntry<T>>> = []
     const removals: Array<string> = []
-    const valid = validateORSetSnapshot(ingress)
-    if (!valid) return
+    if (!validateORSetSnapshot(ingress)) {
+      throw new ORSetError('BAD_SNAPSHOT', 'Malformed snapshot.')
+    }
 
     for (const tomb of ingress.tombs) {
       if (this.state.tombs.has(tomb)) continue
@@ -120,11 +136,8 @@ export class ORSet<T> {
     }
     for (const entry of ingress.items) {
       const v7 = entry.__uuidv7
-      if (
-        this.isUuidV7(v7) &&
-        !this.state.tombs.has(v7) &&
-        !Object.hasOwn(this.state.items, v7)
-      ) {
+      if (!this.isUuidV7(v7)) continue
+      if (!this.state.tombs.has(v7) && !Object.hasOwn(this.state.items, v7)) {
         this.state.items[v7] = Object.freeze(entry)
         this.size++
         additions.push(entry)
@@ -136,6 +149,11 @@ export class ORSet<T> {
           additions,
           removals,
         },
+      })
+    )
+    this.eventTarget.dispatchEvent(
+      new CustomEvent<ORSetSnapshot<T>>('snapshot', {
+        detail: this.snapshot(),
       })
     )
   }

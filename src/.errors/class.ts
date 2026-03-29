@@ -1,4 +1,4 @@
-export type ORSetErrorCode = ''
+export type ORSetErrorCode = 'BAD_SNAPSHOT'
 
 export class ORSetError extends Error {
   readonly code: ORSetErrorCode
