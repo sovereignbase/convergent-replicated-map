@@ -250,6 +250,19 @@ export async function runORSetSuite(api, options = {}) {
     assertEqual(events.snapshot.length, 0)
   })
 
+  await runTest('remove unknown string is silent', () => {
+    const set = new ORSet()
+    const ghostId = createValidUuid('ghost')
+    const events = captureEvents(set)
+    set.remove(ghostId)
+
+    assertEqual(set.size, 0)
+    assertJsonEqual(set.values(), [])
+    assertEqual(events.delta.length, 0)
+    assertEqual(events.snapshot.length, 0)
+    assertJsonEqual(readSnapshot(set).tombstones, [])
+  })
+
   await runTest('remove tombstones a live uuid string once', () => {
     const set = new ORSet()
     set.append({ name: 'alice' })
@@ -263,20 +276,6 @@ export async function runORSetSuite(api, options = {}) {
     assertEqual(events.snapshot.length, 0)
     assertJsonEqual(readSnapshot(set).tombstones, [live.__uuidv7])
   })
-
-  await runTest(
-    'remove records a causal tomb for an unknown valid uuid string',
-    () => {
-      const set = new ORSet()
-      const ghostId = createValidUuid('ghost')
-      const events = captureEvents(set)
-      set.remove(ghostId)
-
-      assertEqual(events.delta.length, 1)
-      assertEqual(events.snapshot.length, 0)
-      assertJsonEqual(readSnapshot(set).tombstones, [ghostId])
-    }
-  )
 
   await runTest('merge rejects malformed snapshot', () => {
     const set = new ORSet()

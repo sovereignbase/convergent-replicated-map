@@ -14,10 +14,10 @@ import { hasORSetSnapshotShape } from './hasORSetSnapshotShape/index.js'
 export class ORSet<T extends object> {
   private readonly eventTarget = new EventTarget()
   private readonly state: ORSetState<T>
-  public size: number
+  private _size: number
   /***/
   constructor(snapshot?: ORSetSnapshot<T>) {
-    this.size = 0
+    this._size = 0
     this.state = { values: {}, tombstones: new Set([]) }
     if (snapshot !== undefined) {
       if (!hasORSetSnapshotShape(snapshot)) {
@@ -35,15 +35,19 @@ export class ORSet<T extends object> {
           !Object.hasOwn(this.state.values, v7)
         ) {
           this.state.values[v7] = Object.freeze(value)
-          this.size++
+          this._size++
         }
       }
     }
   }
   /***/
+  get size(): number {
+    return this._size
+  }
+  /***/
   has(value: ORSetValue<T> | string): boolean {
     const v7 = typeof value === 'string' ? value : value.__uuidv7
-    return isUuidV7(v7) && Object.hasOwn(this.state.values, v7)
+    return Object.hasOwn(this.state.values, v7)
   }
   /***/
   append(value: ORSetAppendInput<T>): void {
@@ -57,7 +61,7 @@ export class ORSet<T extends object> {
     )
     const nextV7 = frozenValue.__uuidv7
     this.state.values[nextV7] = frozenValue
-    this.size++
+    this._size++
     this.eventTarget.dispatchEvent(
       new CustomEvent<ORSetSnapshot<T>>('delta', {
         detail: {
@@ -69,14 +73,14 @@ export class ORSet<T extends object> {
   }
   /***/
   clear(): void {
-    if (this.size === 0) return
+    if (this._size === 0) return
     const egressTombstones = []
     for (const v7 of Object.keys(this.state.values)) {
       this.state.tombstones.add(v7)
       delete this.state.values[v7]
       egressTombstones.push(v7)
     }
-    this.size = 0
+    this._size = 0
     this.eventTarget.dispatchEvent(
       new CustomEvent<ORSetSnapshot<T>>('delta', {
         detail: {
@@ -89,13 +93,11 @@ export class ORSet<T extends object> {
   /***/
   remove(value: ORSetValue<T> | string): void {
     const v7 = typeof value === 'string' ? value : value.__uuidv7
-    if (!isUuidV7(v7)) return
     const hadItem = Object.hasOwn(this.state.values, v7)
-    const hadTombstone = this.state.tombstones.has(v7)
-    if (!hadItem && hadTombstone) return
+    if (!hadItem) return
     this.state.tombstones.add(v7)
     delete this.state.values[v7]
-    if (hadItem) this.size--
+    this._size--
     this.eventTarget.dispatchEvent(
       new CustomEvent<ORSetSnapshot<T>>('delta', {
         detail: {
@@ -127,7 +129,7 @@ export class ORSet<T extends object> {
       const hadItem = Object.hasOwn(this.state.values, tombstone)
       this.state.tombstones.add(tombstone)
       delete this.state.values[tombstone]
-      if (hadItem) this.size--
+      if (hadItem) this._size--
       removals.push(tombstone)
     }
     for (const value of ingress.values) {
@@ -138,7 +140,7 @@ export class ORSet<T extends object> {
         !Object.hasOwn(this.state.values, v7)
       ) {
         this.state.values[v7] = Object.freeze(value)
-        this.size++
+        this._size++
         additions.push(value)
       }
     }

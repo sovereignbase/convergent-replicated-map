@@ -1,1 +1,13 @@
-Hakukone optimoi index.html mukaan lukien twitter, og, basic, metat ja json-ld rich data. relevenatteja sameAs alsoKnownAs related juttuja: https://jsr.io/@sovereignbase/observed-remove-set/ ,,, https://github.com/sovereignbase  ,,, https://github.com/sovereignbase/observed-remove-set ,,, https://www.npmjs.com/package/@sovereignbase/observed-remove-set ,,, 
+Hakukone optimoi index.html mukaan lukien twitter, og, basic, metat ja json-ld rich data. relevenatteja sameAs alsoKnownAs related juttuja: 
+
+https://github.com/sovereignbase
+https://jsr.io/@sovereignbase
+https://www.npmjs.com/org/sovereignbase
+
+https://github.com/sovereignbase/observed-remove-set
+https://jsr.io/@sovereignbase/observed-remove-set/
+https://www.npmjs.com/package/@sovereignbase/observed-remove-set
+
+https://github.com/jortsupetterson
+https://www.npmjs.com/~jortsupetterson
+https://jsr.io/user/ab186a13-a64f-429e-a757-927aa4fa6e6c

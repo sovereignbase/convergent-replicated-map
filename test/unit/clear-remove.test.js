@@ -54,6 +54,20 @@ test('remove invalid uuid is silent', () => {
   assert.equal(events.snapshot.length, 0)
 })
 
+test('remove unknown string is silent', () => {
+  const set = new ORSet()
+  const ghostId = createValidUuid('ghost')
+  const { events } = captureEvents(set)
+
+  set.remove(ghostId)
+
+  assert.equal(set.size, 0)
+  assert.deepEqual(set.values(), [])
+  assert.equal(events.delta.length, 0)
+  assert.equal(events.snapshot.length, 0)
+  assert.deepEqual(readSnapshot(set).tombstones, [])
+})
+
 test('remove live uuid string decrements size and emits delta', () => {
   const set = new ORSet()
   set.append({ name: 'alice' })
@@ -82,21 +96,6 @@ test('repeated remove after tombstone is silent', () => {
   assert.equal(set.size, 0)
   assert.equal(events.delta.length, 1)
   assert.equal(events.snapshot.length, 0)
-})
-
-test('remove unknown valid uuid string records a causal tomb and emits once', () => {
-  const set = new ORSet()
-  const ghostId = createValidUuid('ghost')
-  const { events } = captureEvents(set)
-
-  set.remove(ghostId)
-
-  assert.equal(set.size, 0)
-  assert.deepEqual(set.values(), [])
-  assert.equal(events.delta.length, 1)
-  assert.equal(events.snapshot.length, 0)
-  assert.deepEqual(readSnapshot(set).tombstones, [ghostId])
-  assert.deepEqual(events.delta[0].tombstones, [ghostId])
 })
 
 test('has returns false after clear and after remove', () => {
