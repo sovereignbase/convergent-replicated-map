@@ -3,11 +3,15 @@
   "license": "Apache-2.0",
   "name": "@sovereignbase/observed-remove-set",
   "version": "0.0.0",
-  "description": "JS/TS runtime-agnostic observed remove set with a uuidv7 optimization strategy.",
+  "description": "UUIDv7-optimized observed-remove set for JavaScript and TypeScript with delta, merge, and snapshot events.",
   "keywords": [
     "crdt",
-    "delta",
+    "observed-remove-set",
     "orset",
+    "replication",
+    "uuid",
+    "uuidv7",
+    "eventtarget",
     "typescript",
     "sovereignbase"
   ],
