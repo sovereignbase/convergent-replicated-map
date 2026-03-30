@@ -84,12 +84,12 @@ test('repeated remove after tombstone is silent', () => {
   assert.equal(events.snapshot.length, 0)
 })
 
-test('remove unknown valid uuid records a causal tomb and emits once', () => {
+test('remove unknown valid uuid string records a causal tomb and emits once', () => {
   const set = new ORSet()
   const ghostId = createValidUuid('ghost')
   const { events } = captureEvents(set)
 
-  set.remove({ __uuidv7: ghostId, name: 'ghost' })
+  set.remove(ghostId)
 
   assert.equal(set.size, 0)
   assert.deepEqual(set.values(), [])

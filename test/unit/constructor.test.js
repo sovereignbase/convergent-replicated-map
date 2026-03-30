@@ -68,12 +68,12 @@ test('has returns true only for live uuids', () => {
   const set = new ORSet()
   set.append({ name: 'alice' })
   const [live] = set.values()
+  const missingId = createValidUuid('missing')
 
   assert.equal(set.has(live), true)
-  assert.equal(
-    set.has({ __uuidv7: createValidUuid('missing'), name: 'missing' }),
-    false
-  )
+  assert.equal(set.has(live.__uuidv7), true)
+  assert.equal(set.has({ __uuidv7: missingId, name: 'missing' }), false)
+  assert.equal(set.has(missingId), false)
 })
 
 test('snapshot dispatches detached arrays', () => {

@@ -156,11 +156,11 @@ export async function runORSetSuite(api, options = {}) {
     const set = new ORSet()
     set.append({ name: 'alice' })
     const [live] = set.values()
+    const missingId = createValidUuid('missing')
     assertEqual(set.has(live), true)
-    assertEqual(
-      set.has({ __uuidv7: createValidUuid('missing'), name: 'missing' }),
-      false
-    )
+    assertEqual(set.has(live.__uuidv7), true)
+    assertEqual(set.has({ __uuidv7: missingId, name: 'missing' }), false)
+    assertEqual(set.has(missingId), false)
   })
 
   await runTest('append generates uuid freezes value and emits events', () => {
@@ -265,12 +265,12 @@ export async function runORSetSuite(api, options = {}) {
   })
 
   await runTest(
-    'remove records a causal tomb for an unknown valid uuid',
+    'remove records a causal tomb for an unknown valid uuid string',
     () => {
       const set = new ORSet()
       const ghostId = createValidUuid('ghost')
       const events = captureEvents(set)
-      set.remove({ __uuidv7: ghostId, name: 'ghost' })
+      set.remove(ghostId)
 
       assertEqual(events.delta.length, 1)
       assertEqual(events.snapshot.length, 0)

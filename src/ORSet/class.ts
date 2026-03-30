@@ -1,16 +1,17 @@
-import { v7 as uuidv7, version as uuidVersion } from 'uuid'
+import { v7 as uuidv7 } from 'uuid'
 import type {
   ORSetAppendInput,
   ORSetEventListenerFor,
-  ORSetValue,
   ORSetMergeResult,
   ORSetSnapshot,
   ORSetState,
+  ORSetValue,
 } from '../.types/index.js'
 import { ORSetError } from '../.errors/class.js'
-import { validateORSetSnapshot } from './validateORSetSnapshot/index.js'
+import { isUuidV7 } from './isUuidV7/index.js'
+import { hasORSetSnapshotShape } from './hasORSetSnapshotShape/index.js'
 
-export class ORSet<T> {
+export class ORSet<T extends object> {
   private readonly eventTarget = new EventTarget()
   private readonly state: ORSetState<T>
   public size: number
@@ -19,16 +20,16 @@ export class ORSet<T> {
     this.size = 0
     this.state = { values: {}, tombstones: new Set([]) }
     if (snapshot !== undefined) {
-      if (!validateORSetSnapshot(snapshot)) {
+      if (!hasORSetSnapshotShape(snapshot)) {
         throw new ORSetError('BAD_SNAPSHOT', 'Malformed snapshot.')
       }
       for (const tombstone of snapshot.tombstones) {
-        if (!this.isUuidV7(tombstone)) continue
+        if (!isUuidV7(tombstone)) continue
         this.state.tombstones.add(tombstone)
       }
       for (const value of snapshot.values) {
         const v7 = value.__uuidv7
-        if (!this.isUuidV7(v7)) continue
+        if (!isUuidV7(v7)) continue
         if (
           !this.state.tombstones.has(v7) &&
           !Object.hasOwn(this.state.values, v7)
@@ -40,16 +41,17 @@ export class ORSet<T> {
     }
   }
   /***/
-  has(value: ORSetValue<T>): boolean {
-    return Object.hasOwn(this.state.values, value.__uuidv7)
+  has(value: ORSetValue<T> | string): boolean {
+    const v7 = typeof value === 'string' ? value : value.__uuidv7
+    return isUuidV7(v7) && Object.hasOwn(this.state.values, v7)
   }
   /***/
   append(value: ORSetAppendInput<T>): void {
     const v7 = value.__uuidv7 as string | undefined
-    if (this.isUuidV7(v7) && Object.hasOwn(this.state.values, v7)) return
+    if (isUuidV7(v7) && Object.hasOwn(this.state.values, v7)) return
 
     const frozenValue = Object.freeze(
-      this.isUuidV7(v7) && !this.state.tombstones.has(v7)
+      isUuidV7(v7) && !this.state.tombstones.has(v7)
         ? (value as unknown as ORSetValue<T>)
         : ({ ...value, __uuidv7: uuidv7() } as ORSetValue<T>)
     )
@@ -87,7 +89,7 @@ export class ORSet<T> {
   /***/
   remove(value: ORSetValue<T> | string): void {
     const v7 = typeof value === 'string' ? value : value.__uuidv7
-    if (!this.isUuidV7(v7)) return
+    if (!isUuidV7(v7)) return
     const hadItem = Object.hasOwn(this.state.values, v7)
     const hadTombstone = this.state.tombstones.has(v7)
     if (!hadItem && hadTombstone) return
@@ -115,13 +117,13 @@ export class ORSet<T> {
   merge(ingress: ORSetSnapshot<T>) {
     const additions: Array<Readonly<ORSetValue<T>>> = []
     const removals: Array<string> = []
-    if (!validateORSetSnapshot(ingress)) {
+    if (!hasORSetSnapshotShape(ingress)) {
       throw new ORSetError('BAD_SNAPSHOT', 'Malformed snapshot.')
     }
 
     for (const tombstone of ingress.tombstones) {
       if (this.state.tombstones.has(tombstone)) continue
-      if (!this.isUuidV7(tombstone)) continue
+      if (!isUuidV7(tombstone)) continue
       const hadItem = Object.hasOwn(this.state.values, tombstone)
       this.state.tombstones.add(tombstone)
       delete this.state.values[tombstone]
@@ -130,7 +132,7 @@ export class ORSet<T> {
     }
     for (const value of ingress.values) {
       const v7 = value.__uuidv7
-      if (!this.isUuidV7(v7)) continue
+      if (!isUuidV7(v7)) continue
       if (
         !this.state.tombstones.has(v7) &&
         !Object.hasOwn(this.state.values, v7)
@@ -184,14 +186,5 @@ export class ORSet<T> {
       listener as EventListenerOrEventListenerObject | null,
       options
     )
-  }
-  /***/
-  private isUuidV7(value: unknown): value is string {
-    if (typeof value !== 'string') return false
-    try {
-      return uuidVersion(value) === 7
-    } catch {
-      return false
-    }
   }
 }
