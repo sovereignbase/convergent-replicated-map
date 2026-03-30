@@ -132,8 +132,8 @@ for (const tombstone of tombstones) {
 
 ### Event model
 
-- `append()`, `clear()`, and `remove()` dispatch only `delta`.
-- `merge()` dispatches only `merge`.
+- `append()`, `clear()`, and `remove()` returns void and dispatch only `delta`.
+- `merge()` returns void dispatches only `merge`.
 - `snapshot()` returns `void` and dispatches only `snapshot`.
 - No-op operations do not dispatch events.
 
