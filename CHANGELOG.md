@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1](https://github.com/sovereignbase/observed-remove-set/compare/v1.0.0...v1.0.1) (2026-03-30)
+
+
+### Bug Fixes
+
+* JSR issue with dotted dir names. ([3455968](https://github.com/sovereignbase/observed-remove-set/commit/34559680722eec85eaaae23411ee684d5d8f35f6))
+
 ## 1.0.0 (2026-03-30)
 
 
