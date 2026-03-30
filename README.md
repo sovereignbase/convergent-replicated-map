@@ -22,7 +22,6 @@ This package is best suited to membership state and static metadata where values
 - Deterministic event channels: `delta` for local mutations, `merge` for accepted ingress changes, `snapshot` only when explicitly requested.
 - Compact tombstone representation based on identifiers instead of whole value payloads.
 - Runtime-agnostic behavior across Node, browsers, and edge-like runtimes.
-- Explicit fatal errors only for malformed top-level snapshots.
 
 ## Installation
 
