@@ -13,8 +13,8 @@
 
 what it is
 
-A state-based crdt or set bla bla with optimizatio strategy, for more info see sovereignbase.github.io/observed-remove-set
-An observed remove set is useful for storing static metdata or membership information. Writing changes to the or-set values are not updated conflict free or eventually consistently so basically append or remove, and readonly for content with conflict free eventual consistent quarantee, a possible garbage collection strategy is defined in the spec, and
+A state-based crdt or set bla bla with uuidv7 optimizatio strategy, for more info see sovereignbase.github.io/observed-remove-set
+An observed remove set is useful for storing static metdata or membership information. Writing changes to the or-set values are not updated conflict free or eventually consistently so basically append or remove, and readonly for content with conflict free eventual consistent quarantee, a possible garbage collection strategy is defined in the spec.
 
 what it’s for
 
