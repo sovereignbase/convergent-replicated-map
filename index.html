@@ -2,7 +2,82 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>Optimizing an Observed-Remove Set with UUIDv7</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>
+      Optimizing an Observed-Remove Set with UUIDv7 | UUIDv7 OR-Set
+      Specification
+    </title>
+    <meta
+      name="description"
+      content="Specification and reference JavaScript binding for a UUIDv7-optimized observed-remove set (OR-Set), including delta, merge, snapshot, and tombstone garbage-collection guidance."
+    />
+    <meta
+      name="keywords"
+      content="uuidv7, observed-remove set, or-set, CRDT, tombstones, replication, merge, delta, snapshot, JavaScript, TypeScript"
+    />
+    <meta name="author" content="Jori Lehtinen" />
+    <meta
+      name="robots"
+      content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
+    />
+    <meta name="application-name" content="observed-remove-set" />
+    <link
+      rel="canonical"
+      href="https://sovereignbase.github.io/observed-remove-set/"
+    />
+    <link
+      rel="icon"
+      type="image/png"
+      href="https://sovereignbase.github.io/observed-remove-set/sovereignbase_logo.png"
+    />
+    <link
+      rel="apple-touch-icon"
+      href="https://sovereignbase.github.io/observed-remove-set/sovereignbase_logo.png"
+    />
+    <meta property="og:type" content="article" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:site_name" content="Sovereignbase" />
+    <meta
+      property="og:title"
+      content="Optimizing an Observed-Remove Set with UUIDv7 | UUIDv7 OR-Set Specification"
+    />
+    <meta
+      property="og:description"
+      content="Specification and reference JavaScript binding for a UUIDv7-optimized observed-remove set (OR-Set), including delta, merge, snapshot, and tombstone garbage-collection guidance."
+    />
+    <meta
+      property="og:url"
+      content="https://sovereignbase.github.io/observed-remove-set/"
+    />
+    <meta
+      property="og:image"
+      content="https://sovereignbase.github.io/observed-remove-set/sovereignbase_social_sharing_image.png"
+    />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="Sovereignbase social sharing image for the UUIDv7 observed-remove set specification."
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta
+      name="twitter:title"
+      content="Optimizing an Observed-Remove Set with UUIDv7 | UUIDv7 OR-Set Specification"
+    />
+    <meta
+      name="twitter:description"
+      content="Specification and reference JavaScript binding for a UUIDv7-optimized observed-remove set (OR-Set), including delta, merge, snapshot, and tombstone garbage-collection guidance."
+    />
+    <meta
+      name="twitter:image"
+      content="https://sovereignbase.github.io/observed-remove-set/sovereignbase_social_sharing_image.png"
+    />
+    <meta
+      name="twitter:image:alt"
+      content="Sovereignbase social sharing image for the UUIDv7 observed-remove set specification."
+    />
+    <meta name="twitter:creator" content="@jortsupetterson" />
     <script
       src="https://www.w3.org/Tools/respec/respec-w3c"
       class="remove"
@@ -48,6 +123,169 @@
             date: '2022-10-31',
           },
         },
+      }
+    </script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Organization",
+            "@id": "https://sovereignbase.github.io/observed-remove-set/#organization",
+            "name": "Sovereignbase",
+            "url": "https://github.com/sovereignbase",
+            "alternateName": ["@sovereignbase"],
+            "logo": {
+              "@type": "ImageObject",
+              "url": "https://sovereignbase.github.io/observed-remove-set/sovereignbase_logo.png",
+              "width": 320,
+              "height": 320
+            },
+            "sameAs": [
+              "https://github.com/sovereignbase",
+              "https://jsr.io/@sovereignbase",
+              "https://www.npmjs.com/org/sovereignbase"
+            ]
+          },
+          {
+            "@type": "Person",
+            "@id": "https://sovereignbase.github.io/observed-remove-set/#author",
+            "name": "Jori Lehtinen",
+            "url": "https://github.com/jortsupetterson",
+            "alternateName": ["jortsupetterson", "@jortsupetterson"],
+            "sameAs": [
+              "https://github.com/jortsupetterson",
+              "https://www.npmjs.com/~jortsupetterson",
+              "https://jsr.io/user/ab186a13-a64f-429e-a757-927aa4fa6e6c",
+              "https://linkedin.com/in/jortsupetterson",
+              "https://x.com/jortsupetterson",
+              "https://www.youtube.com/@jortsupetterson"
+            ]
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://sovereignbase.github.io/observed-remove-set/#website",
+            "url": "https://sovereignbase.github.io/observed-remove-set/",
+            "name": "observed-remove-set",
+            "inLanguage": "en",
+            "publisher": {
+              "@id": "https://sovereignbase.github.io/observed-remove-set/#organization"
+            }
+          },
+          {
+            "@type": "SoftwareSourceCode",
+            "@id": "https://sovereignbase.github.io/observed-remove-set/#software",
+            "name": "@sovereignbase/observed-remove-set",
+            "alternateName": ["observed-remove-set", "uuidv7-orset"],
+            "url": "https://sovereignbase.github.io/observed-remove-set/",
+            "description": "UUIDv7-optimized observed-remove set for JavaScript and TypeScript with delta, merge, and snapshot events.",
+            "codeRepository": "https://github.com/sovereignbase/observed-remove-set",
+            "license": "https://www.apache.org/licenses/LICENSE-2.0",
+            "programmingLanguage": ["TypeScript", "JavaScript"],
+            "runtimePlatform": [
+              "Node.js",
+              "Web Browser",
+              "Bun",
+              "Deno",
+              "Cloudflare Workers",
+              "Edge Runtime"
+            ],
+            "keywords": [
+              "crdt",
+              "observed-remove-set",
+              "orset",
+              "uuidv7",
+              "replication",
+              "tombstones",
+              "eventtarget"
+            ],
+            "image": "https://sovereignbase.github.io/observed-remove-set/sovereignbase_social_sharing_image.png",
+            "isAccessibleForFree": true,
+            "author": {
+              "@id": "https://sovereignbase.github.io/observed-remove-set/#author"
+            },
+            "maintainer": {
+              "@id": "https://sovereignbase.github.io/observed-remove-set/#organization"
+            },
+            "publisher": {
+              "@id": "https://sovereignbase.github.io/observed-remove-set/#organization"
+            },
+            "sameAs": [
+              "https://jsr.io/@sovereignbase/observed-remove-set/",
+              "https://www.npmjs.com/package/@sovereignbase/observed-remove-set"
+            ]
+          },
+          {
+            "@type": "TechArticle",
+            "@id": "https://sovereignbase.github.io/observed-remove-set/#specification",
+            "headline": "Optimizing an Observed-Remove Set with UUIDv7",
+            "name": "Optimizing an Observed-Remove Set with UUIDv7",
+            "url": "https://sovereignbase.github.io/observed-remove-set/",
+            "description": "Specification and reference JavaScript binding for a UUIDv7-optimized observed-remove set (OR-Set), including delta, merge, snapshot, and tombstone garbage-collection guidance.",
+            "inLanguage": "en",
+            "isPartOf": {
+              "@id": "https://sovereignbase.github.io/observed-remove-set/#website"
+            },
+            "mainEntityOfPage": {
+              "@id": "https://sovereignbase.github.io/observed-remove-set/#webpage"
+            },
+            "about": {
+              "@id": "https://sovereignbase.github.io/observed-remove-set/#software"
+            },
+            "author": {
+              "@id": "https://sovereignbase.github.io/observed-remove-set/#author"
+            },
+            "publisher": {
+              "@id": "https://sovereignbase.github.io/observed-remove-set/#organization"
+            },
+            "image": {
+              "@type": "ImageObject",
+              "url": "https://sovereignbase.github.io/observed-remove-set/sovereignbase_social_sharing_image.png",
+              "width": 1200,
+              "height": 630
+            }
+          },
+          {
+            "@type": "WebPage",
+            "@id": "https://sovereignbase.github.io/observed-remove-set/#webpage",
+            "url": "https://sovereignbase.github.io/observed-remove-set/",
+            "name": "Optimizing an Observed-Remove Set with UUIDv7",
+            "description": "Specification and reference JavaScript binding for a UUIDv7-optimized observed-remove set (OR-Set), including delta, merge, snapshot, and tombstone garbage-collection guidance.",
+            "inLanguage": "en",
+            "isPartOf": {
+              "@id": "https://sovereignbase.github.io/observed-remove-set/#website"
+            },
+            "about": {
+              "@id": "https://sovereignbase.github.io/observed-remove-set/#software"
+            },
+            "author": {
+              "@id": "https://sovereignbase.github.io/observed-remove-set/#author"
+            },
+            "publisher": {
+              "@id": "https://sovereignbase.github.io/observed-remove-set/#organization"
+            },
+            "primaryImageOfPage": {
+              "@type": "ImageObject",
+              "url": "https://sovereignbase.github.io/observed-remove-set/sovereignbase_social_sharing_image.png",
+              "width": 1200,
+              "height": 630
+            },
+            "relatedLink": [
+              "https://github.com/sovereignbase",
+              "https://jsr.io/@sovereignbase",
+              "https://www.npmjs.com/org/sovereignbase",
+              "https://github.com/sovereignbase/observed-remove-set",
+              "https://jsr.io/@sovereignbase/observed-remove-set/",
+              "https://www.npmjs.com/package/@sovereignbase/observed-remove-set",
+              "https://github.com/jortsupetterson",
+              "https://www.npmjs.com/~jortsupetterson",
+              "https://jsr.io/user/ab186a13-a64f-429e-a757-927aa4fa6e6c",
+              "https://linkedin.com/in/jortsupetterson",
+              "https://x.com/jortsupetterson",
+              "https://www.youtube.com/@jortsupetterson"
+            ]
+          }
+        ]
       }
     </script>
   </head>
