@@ -237,18 +237,18 @@
       <section>
         <h3>Remove</h3>
         <p>
-          A remove operation MUST record the target identifier in the tombstone
-          set.
+          A remove operation in the reference JavaScript binding operates over
+          locally visible live state.
         </p>
         <p>
           If a <a>live value</a> with that identifier exists, it MUST be removed
-          from the live value store.
+          from the live value store and the identifier MUST be recorded in the
+          tombstone set.
         </p>
         <p>
-          A conforming implementation MAY accept a remove for an identifier that
-          is not currently live, provided the operation still records the
-          tombstone. This permits causal tombstoning ahead of a later add
-          observation from another replica.
+          If no <a>live value</a> with that identifier exists in the local
+          replica, the reference JavaScript binding MUST treat the remove
+          operation as a no-op.
         </p>
       </section>
 
@@ -387,7 +387,7 @@
 interface ORSet {
   constructor();
   constructor(ORSetSnapshot snapshot);
-  attribute unsigned long size;
+  readonly attribute unsigned long size;
   boolean has(any value);
   undefined append(any value);
   undefined clear();
@@ -527,9 +527,8 @@ dictionary ORSetMergeResult {
               <code>value.__uuidv7</code>.
             </li>
             <li>
-              Return true if <var>id</var> is a valid
-              <a>UUIDv7 identifier</a> and the live value store has its own
-              property named <var>id</var>; otherwise return false.
+              Return true if the live value store has its own property named
+              <var>id</var>; otherwise return false.
             </li>
           </ol>
         </section>
@@ -601,27 +600,13 @@ dictionary ORSetMergeResult {
               <code>value.__uuidv7</code>.
             </li>
             <li>
-              If <var>id</var> is not a valid <a>UUIDv7 identifier</a>, then
-              return.
-            </li>
-            <li>
               Let <var>had item</var> be whether the live value store has its
               own property named <var>id</var>.
             </li>
-            <li>
-              Let <var>had tomb</var> be whether the tombstone set contains
-              <var>id</var>.
-            </li>
-            <li>
-              If <var>had item</var> is false and <var>had tomb</var> is true,
-              then return.
-            </li>
+            <li>If <var>had item</var> is false, then return.</li>
             <li>Add <var>id</var> to the tombstone set.</li>
             <li>Delete the live value store entry at <var>id</var>.</li>
-            <li>
-              If <var>had item</var> is true, decrease <var>size</var> by
-              <code>1</code>.
-            </li>
+            <li>Decrease <var>size</var> by <code>1</code>.</li>
             <li>
               Dispatch a <a>delta event</a> whose detail contains
               <code>values: []</code> and <code>tombstones: [id]</code>.
