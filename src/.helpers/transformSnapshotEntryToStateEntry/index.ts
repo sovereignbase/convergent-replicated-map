@@ -8,8 +8,7 @@ export function transformSnapshotEntryToStateEntry<T>(
     prototype(snapshotEntry) !== 'record' ||
     !Object.hasOwn(snapshotEntry, 'value') ||
     !isUuidV7(snapshotEntry.uuidv7) ||
-    !isUuidV7(snapshotEntry.predecessor) ||
-    !Array.isArray(snapshotEntry.tombstones)
+    !isUuidV7(snapshotEntry.predecessor)
   )
     return false
 
@@ -18,23 +17,9 @@ export function transformSnapshotEntryToStateEntry<T>(
   const [cloned, copiedValue] = safeStructuredClone(value)
   if (!cloned) return false
 
-  const tombstones = new Set<string>([])
-  for (const tombstone of snapshotEntry.tombstones) {
-    if (
-      !isUuidV7(tombstone) ||
-      tombstone ===
-        snapshotEntry.uuidv7 /**if it was actually overwritten the current uuid would be different so this must be malicious*/
-    )
-      continue
-    tombstones.add(tombstone)
-  }
-
-  if (!tombstones.has(snapshotEntry.predecessor)) return false
-
   return {
     uuidv7: snapshotEntry.uuidv7,
     value: { key, value: copiedValue },
     predecessor: snapshotEntry.predecessor,
-    tombstones: tombstones,
   }
 }

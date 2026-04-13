@@ -7,13 +7,15 @@ export type CRMapStateEntry<K extends string, V> = {
   uuidv7: string
   value: { key: K; value: V }
   predecessor: string
-  tombstones: Set<string>
 }
 
 /**
  * Represents the internal replicated state of an CR-Map replica.
  */
-export type CRMapState<K extends string, V> = Map<K, CRMapStateEntry<K, V>>
+export type CRMapState<K extends string, V> = {
+  values: Map<K, CRMapStateEntry<K, V>>
+  tombstones: Set<string>
+}
 
 /**Serlialized projection of replica state*/
 
@@ -24,13 +26,15 @@ export type CRMapSnapshotEntry<K, V> = {
   uuidv7: string
   value: { key: K; value: V }
   predecessor: string
-  tombstones: Array<string>
 }
 
 /**
  * Represents a serialized snapshot of the full replica state.
  */
-export type CRMapSnapshot<K extends string, V> = Array<CRMapSnapshotEntry<K, V>>
+export type CRMapSnapshot<K extends string, V> = {
+  values: Array<CRMapSnapshotEntry<K, V>>
+  tombstones: Array<string>
+}
 
 /**Resolved projection of replica state*/
 
