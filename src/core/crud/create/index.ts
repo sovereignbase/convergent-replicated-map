@@ -8,6 +8,7 @@ export function create<T>(
     for (const snapshotEntry of snapshot) {
       const stateEntry = transformSnapshotEntryToStateEntry(snapshotEntry)
       if (!stateEntry) continue
+      crMapReplica.set(stateEntry.value.key, stateEntry)
     }
   }
   return crMapReplica

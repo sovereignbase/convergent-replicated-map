@@ -1,6 +1,6 @@
 {
   "$schema": "https://jsr.io/schema/config-file.v1.json",
-  "name": "@sovereignbase/observed-remove-set",
+  "name": "@sovereignbase/convergent-replicated-map",
   "version": "1.0.0",
   "exports": "./src/index.ts",
   "publish": {
