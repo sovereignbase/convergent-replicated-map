@@ -1,58 +1,92 @@
-/** Represents a live value tagged with its UUIDv7 identifier. */
-export type ORSetValue<T extends object> = Omit<T, '__uuidv7'> & {
-  __uuidv7: string
-}
+/**Replica State*/
 
-/** Represents the accepted input shape for {@link ORSet.append}. */
-export type ORSetAppendInput<T extends object> = Omit<
-  ORSetValue<T>,
-  '__uuidv7'
-> &
-  Partial<Pick<ORSetValue<T>, '__uuidv7'>>
-
-/** Represents the internal replica state. */
-export type ORSetState<T extends object> = {
-  values: Record<string, Readonly<ORSetValue<T>>>
+/**
+ * Represents the internal replicated state for a single field.
+ */
+export type CRMapStateEntry<K extends string, V> = {
+  uuidv7: string
+  value: { key: K; value: V }
+  predecessor: string
   tombstones: Set<string>
 }
 
-/** Represents a full transportable OR-Set snapshot. */
-export type ORSetSnapshot<T extends object> = {
-  values: Array<Readonly<ORSetValue<T>>>
+/**
+ * Represents the internal replicated state of an CR-Map replica.
+ */
+export type CRMapState<K extends string, V> = Map<K, CRMapStateEntry<K, V>>
+
+/**Serlialized projection of replica state*/
+
+/**
+ * Represents the serialized state for a single field.
+ */
+export type CRMapSnapshotEntry<K, V> = {
+  uuidv7: string
+  value: { key: K; value: V }
+  predecessor: string
   tombstones: Array<string>
 }
 
-/** Represents the payload emitted by local delta events. */
-export type ORSetDelta<T extends object> = {
-  values: Array<Readonly<ORSetValue<T>>>
-  tombstones: Array<string>
+/**
+ * Represents a serialized snapshot of the full replica state.
+ */
+export type CRMapSnapshot<K extends string, V> = Array<CRMapSnapshotEntry<K, V>>
+
+/**Resolved projection of replica state*/
+
+/**
+ * Represents visible field values that changed during a local operation or merge.
+ */
+export type CRMapChange<K extends string, V> = Record<K, V>
+/**(T)*/
+
+/**Partial changes to gossip*/
+
+/**
+ * Represents a partial serialized state projection exchanged between replicas.
+ */
+export type CRMapDelta<K extends string, V> = Partial<CRMapSnapshot<K, V>>
+
+/**A "report" on what the replica has seen*/
+
+/**
+ * Represents the current acknowledgement frontier emitted by a replica.
+ */
+export type CRMapAck<T extends Record<string, unknown>> = Partial<
+  Record<keyof T, string>
+>
+
+/***/
+
+/**
+ * Maps OO-Struct event names to their event payload shapes.
+ */
+export type CRMapEventMap<T extends Record<string, unknown>> = {
+  /** STATE / PROJECTION */
+  snapshot: CRMapSnapshot<T>
+  change: CRMapChange<T>
+
+  /** GOSSIP / PROTOCOL */
+  delta: CRMapDelta<T>
+  ack: CRMapAck<T>
 }
 
-/** Represents the payload emitted by merge events. */
-export type ORSetMergeResult<T extends object> = {
-  removals: Array<string>
-  additions: Array<Readonly<ORSetValue<T>>>
-}
-
-/** Maps OR-Set event types to their corresponding detail payloads. */
-export type ORSetEventMap<T extends object> = {
-  snapshot: ORSetSnapshot<T>
-  delta: ORSetDelta<T>
-  merge: ORSetMergeResult<T>
-}
-
-/** Represents a typed OR-Set event listener. */
-export type ORSetEventListener<
-  T extends object,
-  K extends keyof ORSetEventMap<T>,
+/**
+ * Represents a strongly typed OO-Struct event listener.
+ */
+export type CRMapEventListener<
+  T extends Record<string, unknown>,
+  K extends keyof CRMapEventMap<T>,
 > =
-  | ((event: CustomEvent<ORSetEventMap<T>[K]>) => void)
-  | { handleEvent(event: CustomEvent<ORSetEventMap<T>[K]>): void }
+  | ((event: CustomEvent<CRMapEventMap<T>[K]>) => void)
+  | { handleEvent(event: CustomEvent<CRMapEventMap<T>[K]>): void }
 
-/** Represents the listener shape accepted by OR-Set event methods. */
-export type ORSetEventListenerFor<
-  T extends object,
+/**
+ * Resolves an event name to its corresponding listener type.
+ */
+export type CRMapEventListenerFor<
+  T extends Record<string, unknown>,
   K extends string,
-> = K extends keyof ORSetEventMap<T>
-  ? ORSetEventListener<T, K>
+> = K extends keyof CRMapEventMap<T>
+  ? CRMapEventListener<T, K>
   : EventListenerOrEventListenerObject

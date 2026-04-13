@@ -1,9 +1,9 @@
 /** Enumerates explicit OR-Set error codes. */
-export type ORSetErrorCode = 'BAD_SNAPSHOT'
+export type CRMapErrorCode = 'BAD_SNAPSHOT'
 
 /** Represents an explicit OR-Set error. */
-export class ORSetError extends Error {
-  readonly code: ORSetErrorCode
+export class CRMapError extends Error {
+  readonly code: CRMapErrorCode
 
   /**
    * Creates a new OR-Set error.
@@ -11,10 +11,10 @@ export class ORSetError extends Error {
    * @param code - The semantic error code.
    * @param message - An optional human-readable detail.
    */
-  constructor(code: ORSetErrorCode, message?: string) {
+  constructor(code: CRMapErrorCode, message?: string) {
     const detail = message ?? code
     super(`{@sovereignbase/observed-remove-set} ${detail}`)
     this.code = code
-    this.name = 'ORSetError'
+    this.name = 'CRMapError'
   }
 }

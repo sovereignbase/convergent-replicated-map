@@ -1,9 +1,9 @@
-export { ORSet } from './ORSet/class.js'
-export type { ORSetErrorCode } from './.errors/class.js'
+export { CRMap } from './CRMap/class.js'
+export type { CRMapErrorCode } from './.errors/class.js'
 export type {
-  ORSetAppendInput,
-  ORSetDelta,
-  ORSetMergeResult,
-  ORSetSnapshot,
-  ORSetValue,
+  CRMapAppendInput,
+  CRMapDelta,
+  CRMapMergeResult,
+  CRMapSnapshot,
+  CRMapValue,
 } from './.types/index.js'

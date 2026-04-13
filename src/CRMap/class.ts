@@ -1,39 +1,37 @@
 import { v7 as uuidv7 } from 'uuid'
 import type {
-  ORSetAppendInput,
-  ORSetDelta,
-  ORSetEventListenerFor,
-  ORSetMergeResult,
-  ORSetSnapshot,
-  ORSetState,
-  ORSetValue,
+  CRMapAppendInput,
+  CRMapDelta,
+  CRMapEventListenerFor,
+  CRMapMergeResult,
+  CRMapSnapshot,
+  CRMapState,
+  CRMapValue,
 } from '../.types/index.js'
-import { ORSetError } from '../.errors/class.js'
-import { isUuidV7 } from './isUuidV7/index.js'
-import { hasORSetSnapshotShape } from './hasORSetSnapshotShape/index.js'
+import { CRMapError } from '../.errors/class.js'
+import { isUuidV7 } from '@sovereignbase/utils'
 
 /**
  * Represents a UUIDv7-optimized observed-remove set.
  *
  * @typeParam T - The payload shape stored in the set.
  */
-export class ORSet<T extends object> {
+export class CRMap<T extends object> {
   private readonly eventTarget = new EventTarget()
-  private readonly state: ORSetState<T>
-  private _size: number
+  private readonly state: CRMapState<T>
 
   /**
    * Creates a new OR-Set, optionally hydrating it from a snapshot.
    *
    * @param snapshot - A snapshot to hydrate from.
-   * @throws {ORSetError} Thrown if the snapshot shape is malformed.
+   * @throws {CRMapError} Thrown if the snapshot shape is malformed.
    */
-  constructor(snapshot?: ORSetSnapshot<T>) {
+  constructor(snapshot?: CRMapSnapshot<T>) {
     this._size = 0
     this.state = { values: {}, tombstones: new Set([]) }
     if (snapshot !== undefined) {
-      if (!hasORSetSnapshotShape(snapshot)) {
-        throw new ORSetError('BAD_SNAPSHOT', 'Malformed snapshot.')
+      if (!hasCRMapSnapshotShape(snapshot)) {
+        throw new CRMapError('BAD_SNAPSHOT', 'Malformed snapshot.')
       }
       for (const tombstone of snapshot.tombstones) {
         if (!isUuidV7(tombstone)) continue
@@ -63,7 +61,7 @@ export class ORSet<T extends object> {
    *
    * @param value - A stored value or its UUIDv7 identifier.
    */
-  has(value: ORSetValue<T> | string): boolean {
+  has(value: CRMapValue<T> | string): boolean {
     const v7 = typeof value === 'string' ? value : value.__uuidv7
     return Object.hasOwn(this.state.values, v7)
   }
@@ -77,20 +75,20 @@ export class ORSet<T extends object> {
    *
    * @param value - The value to append.
    */
-  append(value: ORSetAppendInput<T>): void {
+  append(value: CRMapAppendInput<T>): void {
     const v7 = value.__uuidv7 as string | undefined
     if (isUuidV7(v7) && Object.hasOwn(this.state.values, v7)) return
 
     const frozenValue = Object.freeze(
       isUuidV7(v7) && !this.state.tombstones.has(v7)
-        ? (value as unknown as ORSetValue<T>)
-        : ({ ...value, __uuidv7: uuidv7() } as ORSetValue<T>)
+        ? (value as unknown as CRMapValue<T>)
+        : ({ ...value, __uuidv7: uuidv7() } as CRMapValue<T>)
     )
     const nextV7 = frozenValue.__uuidv7
     this.state.values[nextV7] = frozenValue
     this._size++
     this.eventTarget.dispatchEvent(
-      new CustomEvent<ORSetDelta<T>>('delta', {
+      new CustomEvent<CRMapDelta<T>>('delta', {
         detail: {
           tombstones: [],
           values: [frozenValue],
@@ -110,7 +108,7 @@ export class ORSet<T extends object> {
     }
     this._size = 0
     this.eventTarget.dispatchEvent(
-      new CustomEvent<ORSetDelta<T>>('delta', {
+      new CustomEvent<CRMapDelta<T>>('delta', {
         detail: {
           tombstones: egressTombstones,
           values: [],
@@ -124,7 +122,7 @@ export class ORSet<T extends object> {
    *
    * @param value - A stored value or its UUIDv7 identifier.
    */
-  remove(value: ORSetValue<T> | string): void {
+  remove(value: CRMapValue<T> | string): void {
     const v7 = typeof value === 'string' ? value : value.__uuidv7
     const hadItem = Object.hasOwn(this.state.values, v7)
     if (!hadItem) return
@@ -132,7 +130,7 @@ export class ORSet<T extends object> {
     delete this.state.values[v7]
     this._size--
     this.eventTarget.dispatchEvent(
-      new CustomEvent<ORSetDelta<T>>('delta', {
+      new CustomEvent<CRMapDelta<T>>('delta', {
         detail: {
           tombstones: [v7],
           values: [],
@@ -142,7 +140,7 @@ export class ORSet<T extends object> {
   }
 
   /** Returns the current live values in enumeration order. */
-  values(): Array<Readonly<ORSetValue<T>>> {
+  values(): Array<Readonly<CRMapValue<T>>> {
     return Object.values(this.state.values)
   }
 
@@ -155,13 +153,13 @@ export class ORSet<T extends object> {
    * Merges an ingress snapshot into the local replica.
    *
    * @param ingress - The snapshot to merge.
-   * @throws {ORSetError} Thrown if the snapshot shape is malformed.
+   * @throws {CRMapError} Thrown if the snapshot shape is malformed.
    */
-  merge(ingress: ORSetSnapshot<T>): void {
-    const additions: Array<Readonly<ORSetValue<T>>> = []
+  merge(ingress: CRMapSnapshot<T>): void {
+    const additions: Array<Readonly<CRMapValue<T>>> = []
     const removals: Array<string> = []
-    if (!hasORSetSnapshotShape(ingress)) {
-      throw new ORSetError('BAD_SNAPSHOT', 'Malformed snapshot.')
+    if (!hasCRMapSnapshotShape(ingress)) {
+      throw new CRMapError('BAD_SNAPSHOT', 'Malformed snapshot.')
     }
 
     for (const tombstone of ingress.tombstones) {
@@ -187,7 +185,7 @@ export class ORSet<T extends object> {
     }
     if (additions.length === 0 && removals.length === 0) return
     this.eventTarget.dispatchEvent(
-      new CustomEvent<ORSetMergeResult<T>>('merge', {
+      new CustomEvent<CRMapMergeResult<T>>('merge', {
         detail: {
           additions,
           removals,
@@ -199,7 +197,7 @@ export class ORSet<T extends object> {
   /** Dispatches a snapshot event containing the current replica state. */
   snapshot(): void {
     this.eventTarget.dispatchEvent(
-      new CustomEvent<ORSetSnapshot<T>>('snapshot', {
+      new CustomEvent<CRMapSnapshot<T>>('snapshot', {
         detail: {
           values: Object.values(this.state.values),
           tombstones: Array.from(this.state.tombstones.values()),
@@ -217,7 +215,7 @@ export class ORSet<T extends object> {
    */
   addEventListener<K extends string>(
     type: K,
-    listener: ORSetEventListenerFor<T, K> | null,
+    listener: CRMapEventListenerFor<T, K> | null,
     options?: boolean | AddEventListenerOptions
   ): void {
     this.eventTarget.addEventListener(
@@ -236,7 +234,7 @@ export class ORSet<T extends object> {
    */
   removeEventListener<K extends string>(
     type: K,
-    listener: ORSetEventListenerFor<T, K> | null,
+    listener: CRMapEventListenerFor<T, K> | null,
     options?: boolean | EventListenerOptions
   ): void {
     this.eventTarget.removeEventListener(
