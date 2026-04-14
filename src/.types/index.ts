@@ -41,7 +41,7 @@ export type CRMapSnapshot<K extends string, V> = {
 /**
  * Represents visible field values that changed during a local operation or merge.
  */
-export type CRMapChange<K extends string, V> = Record<K, V>
+export type CRMapChange<K extends string, V> = Record<K, V | undefined>
 /**(T)*/
 
 /**Partial changes to gossip*/
@@ -70,7 +70,7 @@ export type CRMapEventMap<K extends string, V> = {
 
   /** GOSSIP / PROTOCOL */
   delta: CRMapDelta<K, V>
-  ack: CRMapAck<K, V>
+  ack: CRMapAck
 }
 
 /**
@@ -78,7 +78,7 @@ export type CRMapEventMap<K extends string, V> = {
  */
 export type CRMapEventListener<
   T extends Record<string, unknown>,
-  K extends keyof CRMapEventMap<T>,
+  K extends keyof CRMapEventMap<string, T>,
 > =
   | ((event: CustomEvent<CRMapEventMap<T>[K]>) => void)
   | { handleEvent(event: CustomEvent<CRMapEventMap<T>[K]>): void }

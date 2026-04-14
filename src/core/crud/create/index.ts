@@ -1,6 +1,25 @@
 import { isUuidV7, prototype } from '@sovereignbase/utils'
 import { transformSnapshotEntryToStateEntry } from '../../../.helpers/index.js'
 import type { CRMapSnapshot, CRMapState } from '../../../.types/index.js'
+
+/**
+ * Creates a local CRMap replica from an optional snapshot.
+ *
+ * Invalid snapshot records are ignored. Accepted tombstones are materialized
+ * first, then live entries are cloned into the replica. When multiple live
+ * entries compete for the same key, the lexicographically larger UUIDv7 wins so
+ * hydration stays deterministic.
+ *
+ * @param snapshot Optional serialized CRMap state.
+ * @returns A hydrated CRMap replica.
+ *
+ * Time complexity: O(v + t + c), worst case O(v + t + c)
+ * - v = snapshot value entry count
+ * - t = snapshot tombstone count
+ * - c = cloned value payload size across accepted entries
+ *
+ * Space complexity: O(v + t + c)
+ */
 export function __create<T>(
   snapshot?: CRMapSnapshot<string, T>
 ): CRMapState<string, T> {
@@ -8,31 +27,31 @@ export function __create<T>(
     values: new Map(),
     tombstones: new Set(),
   }
+  if (!snapshot || prototype(snapshot) !== 'record') return crMapReplica
+
   if (
-    snapshot &&
-    prototype(snapshot) === 'record' &&
-    Object.hasOwn(snapshot, 'values') &&
-    Object.hasOwn(snapshot, 'tombstones')
+    Object.hasOwn(snapshot, 'tombstones') &&
+    Array.isArray(snapshot.tombstones)
   ) {
-    if (Array.isArray(snapshot.tombstones)) {
-      for (const tombstone of snapshot.tombstones) {
-        if (!isUuidV7(tombstone) || crMapReplica.tombstones.has(tombstone))
-          continue
-        crMapReplica.tombstones.add(tombstone)
-      }
+    for (const tombstone of snapshot.tombstones) {
+      if (!isUuidV7(tombstone) || crMapReplica.tombstones.has(tombstone))
+        continue
+      crMapReplica.tombstones.add(tombstone)
     }
-    if (Array.isArray(snapshot.values)) {
-      for (const snapshotEntry of snapshot.values) {
-        if (crMapReplica.tombstones.has(snapshotEntry.uuidv7)) continue
-        if (crMapReplica.values.has(snapshotEntry.value.key)) {
-          /**TODO add merge conflict resolution logic larger uuid wins*/
-          continue
-        }
-        const stateEntry = transformSnapshotEntryToStateEntry<T>(snapshotEntry)
-        if (!stateEntry) continue
-        crMapReplica.values.set(stateEntry.value.key, stateEntry)
-      }
-    }
+  }
+
+  if (!Object.hasOwn(snapshot, 'values') || !Array.isArray(snapshot.values))
+    return crMapReplica
+
+  for (const snapshotEntry of snapshot.values) {
+    if (crMapReplica.tombstones.has(snapshotEntry.uuidv7)) continue
+    const stateEntry = transformSnapshotEntryToStateEntry<T>(snapshotEntry)
+    if (!stateEntry) continue
+
+    const currentEntry = crMapReplica.values.get(stateEntry.value.key)
+    if (currentEntry && currentEntry.uuidv7 >= stateEntry.uuidv7) continue
+
+    crMapReplica.values.set(stateEntry.value.key, stateEntry)
   }
   return crMapReplica
 }
