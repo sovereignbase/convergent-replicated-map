@@ -25,7 +25,9 @@ export function __create<T>(
 ): CRMapState<string, T> {
   const crMapReplica: CRMapState<string, T> = {
     values: new Map(),
+    relations: new Map(),
     tombstones: new Set(),
+    predecessors: new Set(),
   }
   if (!snapshot || prototype(snapshot) !== 'record') return crMapReplica
 
@@ -50,8 +52,9 @@ export function __create<T>(
 
     const currentEntry = crMapReplica.values.get(stateEntry.value.key)
     if (currentEntry && currentEntry.uuidv7 >= stateEntry.uuidv7) continue
-
+    crMapReplica.relations.set(stateEntry.uuidv7, stateEntry.value.key)
     crMapReplica.values.set(stateEntry.value.key, stateEntry)
+    crMapReplica.predecessors.add(stateEntry.predecessor)
   }
   return crMapReplica
 }

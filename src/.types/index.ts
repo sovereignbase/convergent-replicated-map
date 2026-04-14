@@ -14,7 +14,9 @@ export type CRMapStateEntry<K extends string, V> = {
  */
 export type CRMapState<K extends string, V> = {
   values: Map<K, CRMapStateEntry<K, V>>
+  relations: Map<string, K>
   tombstones: Set<string>
+  predecessors: Set<string>
 }
 
 /**Serlialized projection of replica state*/
