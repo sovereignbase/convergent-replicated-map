@@ -56,23 +56,21 @@ export type CRMapDelta<K extends string, V> = Partial<CRMapSnapshot<K, V>>
 /**
  * Represents the current acknowledgement frontier emitted by a replica.
  */
-export type CRMapAck<T extends Record<string, unknown>> = Partial<
-  Record<keyof T, string>
->
+export type CRMapAck = string
 
 /***/
 
 /**
  * Maps OO-Struct event names to their event payload shapes.
  */
-export type CRMapEventMap<T extends Record<string, unknown>> = {
+export type CRMapEventMap<K extends string, V> = {
   /** STATE / PROJECTION */
-  snapshot: CRMapSnapshot<T>
-  change: CRMapChange<T>
+  snapshot: CRMapSnapshot<K, V>
+  change: CRMapChange<K, V>
 
   /** GOSSIP / PROTOCOL */
-  delta: CRMapDelta<T>
-  ack: CRMapAck<T>
+  delta: CRMapDelta<K, V>
+  ack: CRMapAck<K, V>
 }
 
 /**
