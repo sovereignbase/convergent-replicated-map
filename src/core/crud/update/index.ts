@@ -11,7 +11,8 @@ import { v7 as uuidv7 } from 'uuid'
  *
  * The incoming value is cloned first, then written as the new winning state
  * entry for `key`. The predecessor entry is tombstoned so the returned delta is
- * ready for gossip.
+ * ready for gossip. Internal helper indexes are updated to keep merge and
+ * garbage collection logic coherent.
  *
  * @param key Target key to overwrite.
  * @param value Next visible value for the key.
@@ -41,7 +42,13 @@ export function __update<T>(
     value: { key, value: copiedValue },
     predecessor,
   }
+  if (oldEntry) {
+    crMapReplica.relations.delete(oldEntry.uuidv7)
+    crMapReplica.predecessors.delete(oldEntry.predecessor)
+  }
   crMapReplica.values.set(key, entry)
+  crMapReplica.relations.set(entry.uuidv7, key)
+  crMapReplica.predecessors.add(predecessor)
   crMapReplica.tombstones.add(predecessor)
   const delta: CRMapDelta<string, T> = {
     values: [

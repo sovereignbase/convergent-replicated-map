@@ -8,8 +8,9 @@ import type {
  * Deletes the current visible value for a key.
  *
  * The live entry is removed from the replica and its UUIDv7 is recorded as a
- * tombstone so the returned delta can be merged by peers. Missing keys resolve
- * to `false` without mutating the replica.
+ * tombstone so the returned delta can be merged by peers. Internal helper
+ * indexes are updated at the same time. Missing keys resolve to `false`
+ * without mutating the replica.
  *
  * @param key Target key to delete.
  * @param crMapReplica Replica to mutate.
@@ -30,6 +31,8 @@ export function __delete<T>(
 
   crMapReplica.tombstones.add(entry.uuidv7)
   crMapReplica.values.delete(key)
+  crMapReplica.relations.delete(entry.uuidv7)
+  crMapReplica.predecessors.delete(entry.predecessor)
   const delta: CRMapDelta<string, T> = {
     tombstones: [entry.uuidv7],
   }

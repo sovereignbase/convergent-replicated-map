@@ -6,9 +6,10 @@ import type { CRMapSnapshot, CRMapState } from '../../../.types/index.js'
  * Creates a local CRMap replica from an optional snapshot.
  *
  * Invalid snapshot records are ignored. Accepted tombstones are materialized
- * first, then live entries are cloned into the replica. When multiple live
- * entries compete for the same key, the lexicographically larger UUIDv7 wins so
- * hydration stays deterministic.
+ * first, then live entries are cloned into the replica. Duplicate key
+ * contenders use a minimal deterministic tie-break: a direct descendant wins,
+ * the same UUID can advance with a larger predecessor, and otherwise the larger
+ * UUIDv7 wins.
  *
  * @param snapshot Optional serialized CRMap state.
  * @returns A hydrated CRMap replica.
@@ -46,12 +47,29 @@ export function __create<T>(
     return crMapReplica
 
   for (const snapshotEntry of snapshot.values) {
+    if (prototype(snapshotEntry) !== 'record') continue
     if (crMapReplica.tombstones.has(snapshotEntry.uuidv7)) continue
     const stateEntry = transformSnapshotEntryToStateEntry<T>(snapshotEntry)
     if (!stateEntry) continue
 
     const currentEntry = crMapReplica.values.get(stateEntry.value.key)
-    if (currentEntry && currentEntry.uuidv7 >= stateEntry.uuidv7) continue
+    if (
+      currentEntry &&
+      currentEntry.uuidv7 === stateEntry.uuidv7 &&
+      currentEntry.predecessor >= stateEntry.predecessor
+    )
+      continue
+    if (
+      currentEntry &&
+      currentEntry.uuidv7 !== stateEntry.uuidv7 &&
+      currentEntry.uuidv7 !== stateEntry.predecessor &&
+      currentEntry.uuidv7 >= stateEntry.uuidv7
+    )
+      continue
+    if (currentEntry) {
+      crMapReplica.relations.delete(currentEntry.uuidv7)
+      crMapReplica.predecessors.delete(currentEntry.predecessor)
+    }
     crMapReplica.relations.set(stateEntry.uuidv7, stateEntry.value.key)
     crMapReplica.values.set(stateEntry.value.key, stateEntry)
     crMapReplica.predecessors.add(stateEntry.predecessor)
