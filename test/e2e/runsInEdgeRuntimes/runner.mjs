@@ -1,46 +1,77 @@
 import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import * as uuid from 'uuid'
+import * as utils from '@sovereignbase/utils'
 import { EdgeRuntime } from 'edge-runtime'
-import { ensurePassing, printResults, runORSetSuite } from '../shared/suite.mjs'
+import { ensurePassing, printResults, runCRMapSuite } from '../shared/suite.mjs'
 
 const root = process.cwd()
 const esmDistPath = resolve(root, 'dist', 'index.js')
 
-function toExecutableEdgeEsm(bundleCode) {
-  const uuidV7ImportPattern =
-    /import\s*\{\s*v7 as uuidv7\s*\}\s*from\s*["']uuid["'];\s*/
-  const uuidVersionImportPattern =
-    /import\s*\{\s*version as uuidVersion\s*\}\s*from\s*["']uuid["'];\s*/
+function toDestructure(specifiers, globalName) {
+  const members = specifiers
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .map((part) => {
+      const [left, right] = part.split(/\s+as\s+/)
+      return right ? `${left.trim()}: ${right.trim()}` : left.trim()
+    })
+    .join(', ')
 
-  if (
-    !uuidV7ImportPattern.test(bundleCode) ||
-    !uuidVersionImportPattern.test(bundleCode)
-  ) {
-    throw new Error('edge-runtime esm harness could not find the uuid import')
-  }
+  return `const { ${members} } = ${globalName};\n`
+}
 
-  const withoutImport = bundleCode
-    .replace(uuidV7ImportPattern, '')
-    .replace(uuidVersionImportPattern, '')
-  const exportMatch = withoutImport.match(
-    /export\s*\{\s*ORSet\s*\};\s*(\/\/# sourceMappingURL=.*)?\s*$/
+function replaceNamedImports(bundleCode, packageName, globalName) {
+  const pattern = new RegExp(
+    `import\\s*\\{([^}]*)\\}\\s*from\\s*["']${packageName.replace(
+      /[.*+?^${}()|[\]\\]/g,
+      '\\$&'
+    )}["'];\\s*`,
+    'g'
   )
-  if (!exportMatch) {
-    throw new Error('edge-runtime esm harness could not find bundle exports')
-  }
 
-  const sourceMapComment = exportMatch[1] ? `${exportMatch[1]}\n` : ''
+  return bundleCode.replace(pattern, (_, specifiers) =>
+    toDestructure(specifiers, globalName)
+  )
+}
+
+function toExecutableEdgeEsm(bundleCode) {
+  const withoutImports = replaceNamedImports(
+    replaceNamedImports(bundleCode, 'uuid', 'globalThis.__CRMAP_UUID'),
+    '@sovereignbase/utils',
+    'globalThis.__CRMAP_UTILS'
+  )
+
+  const exportMatch = withoutImports.match(
+    /export\s*\{\s*([\s\S]*?)\s*\};\s*(\/\/# sourceMappingURL=.*)?\s*$/
+  )
+  if (!exportMatch)
+    throw new Error('edge-runtime esm harness could not find bundle exports')
+
+  const exportEntries = exportMatch[1]
+    .split(',')
+    .map((specifier) => specifier.trim())
+    .filter(Boolean)
+    .map((specifier) => {
+      const [localName, exportedName] = specifier.split(/\s+as\s+/)
+      return exportedName
+        ? `${JSON.stringify(exportedName)}: ${localName}`
+        : localName
+    })
+    .join(',\n  ')
+
+  const sourceMapComment = exportMatch[2] ? `${exportMatch[2]}\n` : ''
   return (
-    'const { v7: uuidv7, version: uuidVersion } = globalThis.__ORSET_UUID;\n' +
-    withoutImport.slice(0, exportMatch.index) +
-    'globalThis.__ORSET_EXPORTS__ = { ORSet };\n' +
+    withoutImports.slice(0, exportMatch.index) +
+    `globalThis.__crMapEsmExports = {\n  ${exportEntries}\n};\n` +
     sourceMapComment
   )
 }
 
 const runtime = new EdgeRuntime()
-runtime.context.__ORSET_UUID = uuid
+runtime.context.__CRMAP_UUID = uuid
+runtime.context.__CRMAP_UTILS = utils
 runtime.evaluate(`
   if (typeof globalThis.CustomEvent === 'undefined') {
     globalThis.CustomEvent = class CustomEvent extends Event {
@@ -54,7 +85,7 @@ runtime.evaluate(`
 const moduleCode = await readFile(esmDistPath, 'utf8')
 runtime.evaluate(toExecutableEdgeEsm(moduleCode))
 
-const results = await runORSetSuite(runtime.context.__ORSET_EXPORTS__, {
+const results = await runCRMapSuite(runtime.context.__crMapEsmExports, {
   label: 'edge-runtime esm',
 })
 printResults(results)

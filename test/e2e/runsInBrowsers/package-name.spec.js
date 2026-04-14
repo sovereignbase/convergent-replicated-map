@@ -1,9 +1,9 @@
 import { expect, test } from '@playwright/test'
 
-test('observed-remove-set browser suite', async ({ page }) => {
+test('convergent-replicated-map browser suite', async ({ page }) => {
   await page.goto('/')
-  await page.waitForFunction(() => window.__ORSET_RESULTS__)
-  const results = await page.evaluate(() => window.__ORSET_RESULTS__)
+  await page.waitForFunction(() => window.__CRMAP_RESULTS__)
+  const results = await page.evaluate(() => window.__CRMAP_RESULTS__)
 
   expect(
     results.ok,

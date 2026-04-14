@@ -78,10 +78,7 @@ export type CRMapEventMap<K extends string, V> = {
 /**
  * Represents a strongly typed OO-Struct event listener.
  */
-export type CRMapEventListener<
-  T,
-  K extends keyof CRMapEventMap<string, T>,
-> =
+export type CRMapEventListener<T, K extends keyof CRMapEventMap<string, T>> =
   | ((event: CustomEvent<CRMapEventMap<string, T>[K]>) => void)
   | { handleEvent(event: CustomEvent<CRMapEventMap<string, T>[K]>): void }
 

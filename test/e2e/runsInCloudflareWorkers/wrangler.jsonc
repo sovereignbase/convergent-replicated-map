@@ -1,5 +1,5 @@
 {
-  "name": "observed-remove-set-e2e-cloudflare-workers",
+  "name": "convergent-replicated-map-e2e-cloudflare-workers",
   "main": "./worker.mjs",
   "compatibility_date": "2026-03-29",
 }

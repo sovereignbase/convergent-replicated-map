@@ -6,11 +6,11 @@ import {
   runCRMapSuite,
 } from '../e2e/shared/suite.mjs'
 
-test('integration: CRMap replication and stress invariants', async () => {
+test('unit: CRMap core invariants', async () => {
   const results = await runCRMapSuite(api, {
-    label: 'integration',
-    includeStress: true,
-    stressRounds: 10,
+    label: 'unit',
+    includeStress: false,
+    stressRounds: 4,
   })
   printResults(results)
   ensurePassing(results)

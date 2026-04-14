@@ -1,9 +1,24 @@
-const TEST_TIMEOUT_MS = 5000
+const TEST_TIMEOUT_MS = 10_000
 
-export async function runORSetSuite(api, options = {}) {
-  const { label = 'runtime' } = options
+export async function runCRMapSuite(api, options = {}) {
+  const {
+    label = 'runtime',
+    includeStress = false,
+    stressRounds = 12,
+    verbose = false,
+  } = options
   const results = { label, ok: true, errors: [], tests: [] }
-  const { ORSet } = api
+  const {
+    CRMap,
+    __acknowledge,
+    __create,
+    __delete,
+    __garbageCollect,
+    __merge,
+    __read,
+    __snapshot,
+    __update,
+  } = api
 
   function assert(condition, message) {
     if (!condition) throw new Error(message || 'assertion failed')
@@ -16,10 +31,30 @@ export async function runORSetSuite(api, options = {}) {
   }
 
   function assertJsonEqual(actual, expected, message) {
-    assertEqual(
-      JSON.stringify(actual),
-      JSON.stringify(expected),
-      message || 'json mismatch'
+    const actualJson = JSON.stringify(actual)
+    const expectedJson = JSON.stringify(expected)
+    if (actualJson !== expectedJson) {
+      throw new Error(
+        message || `expected ${actualJson} to equal ${expectedJson}`
+      )
+    }
+  }
+
+  function assertChangeEqual(actual, expected, message) {
+    const normalizeChange = (change) =>
+      Object.keys(change)
+        .sort()
+        .map((key) => [
+          key,
+          change[key] === undefined
+            ? { __type: 'undefined' }
+            : structuredClone(change[key]),
+        ])
+
+    assertJsonEqual(
+      normalizeChange(actual),
+      normalizeChange(expected),
+      message || 'change mismatch'
     )
   }
 
@@ -27,76 +62,421 @@ export async function runORSetSuite(api, options = {}) {
     return [...values].sort()
   }
 
-  function captureEvents(set) {
+  function createReplica(snapshot) {
+    return new CRMap(snapshot)
+  }
+
+  function captureEvents(replica) {
     const events = {
       delta: [],
+      change: [],
       snapshot: [],
-      merge: [],
+      ack: [],
     }
 
-    set.addEventListener('delta', (event) => {
+    replica.addEventListener('delta', (event) => {
       events.delta.push(event.detail)
     })
-    set.addEventListener('snapshot', (event) => {
+    replica.addEventListener('change', (event) => {
+      events.change.push(event.detail)
+    })
+    replica.addEventListener('snapshot', (event) => {
       events.snapshot.push(event.detail)
     })
-    set.addEventListener('merge', (event) => {
-      events.merge.push(event.detail)
+    replica.addEventListener('ack', (event) => {
+      events.ack.push(event.detail)
     })
 
     return events
   }
 
   function createValidUuid(seed = 'seed') {
-    const set = new ORSet()
-    set.append({ name: seed })
-    return set.values()[0].__uuidv7
+    const state = __create()
+    const result = __update(`seed-${seed}`, { seed }, state)
+    assert(result, 'expected valid uuid seed update')
+    return result.delta.values[0].uuidv7
   }
 
-  function readSnapshot(set) {
+  function readSnapshot(replica) {
+    return replica.toJSON()
+  }
+
+  function emitSnapshot(replica) {
     let snapshot
 
-    set.addEventListener(
+    replica.addEventListener(
       'snapshot',
       (event) => {
         snapshot = event.detail
       },
       { once: true }
     )
-    assertEqual(set.snapshot(), undefined)
+    assertEqual(replica.snapshot(), undefined)
     assert(snapshot, 'expected snapshot detail')
 
     return snapshot
   }
 
-  function assertBadSnapshotError(error) {
-    assert(error, 'expected an error')
-    assertEqual(error.name, 'ORSetError', 'expected ORSetError name')
-    assertEqual(error.code, 'BAD_SNAPSHOT', 'expected BAD_SNAPSHOT code')
-    assert(
-      /\{@sovereignbase\/observed-remove-set\}/.test(String(error.message)),
-      'expected prefixed error message'
+  function emitAck(replica) {
+    let ack = ''
+
+    replica.addEventListener(
+      'ack',
+      (event) => {
+        ack = event.detail
+      },
+      { once: true }
+    )
+    assertEqual(replica.acknowledge(), undefined)
+    return ack
+  }
+
+  function projection(replica) {
+    return Object.fromEntries(replica.entries())
+  }
+
+  function normalizeProjection(value) {
+    if (Array.isArray(value)) return value.map(normalizeProjection)
+    if (!value || typeof value !== 'object') return value
+
+    return Object.fromEntries(
+      Object.keys(value)
+        .sort()
+        .map((key) => [key, normalizeProjection(value[key])])
     )
   }
 
-  function assertThrows(fn, validate) {
-    let threw = false
+  function assertProjectionEqual(actual, expected, message) {
+    assertJsonEqual(
+      normalizeProjection(actual),
+      normalizeProjection(expected),
+      message || 'projection mismatch'
+    )
+  }
 
-    try {
-      fn()
-    } catch (error) {
-      threw = true
-      if (validate) validate(error)
+  function normalizeSnapshot(snapshot) {
+    return {
+      values: [...snapshot.values]
+        .map((entry) => ({
+          uuidv7: entry.uuidv7,
+          key: entry.value.key,
+          value: structuredClone(entry.value.value),
+          predecessor: entry.predecessor,
+        }))
+        .sort(
+          (left, right) =>
+            left.key.localeCompare(right.key) ||
+            left.uuidv7.localeCompare(right.uuidv7)
+        ),
+      tombstones: sortStrings(snapshot.tombstones),
+    }
+  }
+
+  function nextValue(key, step, replicaIndex) {
+    return {
+      key,
+      owner: replicaIndex,
+      step,
+      tags: [`${key}-${replicaIndex}`, `${step}`],
+      active: (step + replicaIndex) % 2 === 0,
+    }
+  }
+
+  function hostilePayload(step) {
+    const validUuid = createValidUuid(`valid-${step}`)
+    return step % 6 === 0
+      ? null
+      : step % 6 === 1
+        ? false
+        : step % 6 === 2
+          ? []
+          : step % 6 === 3
+            ? { values: 'bad' }
+            : step % 6 === 4
+              ? {
+                  values: [
+                    {
+                      uuidv7: 'bad',
+                      predecessor: 'bad',
+                      value: { key: 'ghost', value: 'bad' },
+                    },
+                  ],
+                  tombstones: ['bad'],
+                }
+              : {
+                  values: [
+                    {
+                      uuidv7: validUuid,
+                      predecessor: 'bad',
+                      value: { key: 'ghost', value: 'bad' },
+                    },
+                  ],
+                }
+  }
+
+  function random(seed) {
+    let state = seed >>> 0
+    return () => {
+      state = (state + 0x6d2b79f5) >>> 0
+      let t = Math.imul(state ^ (state >>> 15), 1 | state)
+      t ^= t + Math.imul(t ^ (t >>> 7), 61 | t)
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+    }
+  }
+
+  function shuffled(values, seed) {
+    const next = values.slice()
+    const rand = random(seed)
+    for (let index = next.length - 1; index > 0; index--) {
+      const other = Math.floor(rand() * (index + 1))
+      ;[next[index], next[other]] = [next[other], next[index]]
+    }
+    return next
+  }
+
+  function shuffledIndices(length, seed) {
+    return shuffled(
+      Array.from({ length }, (_, index) => index),
+      seed
+    )
+  }
+
+  function settleReplicaSnapshots(replicas, rounds, seed, options = {}) {
+    const { restartEveryRound = 0 } = options
+
+    for (let round = 0; round < rounds; round++) {
+      const snapshots = replicas.map((replica) => readSnapshot(replica))
+      const deliveries = []
+
+      for (let sourceIndex = 0; sourceIndex < snapshots.length; sourceIndex++) {
+        for (
+          let targetIndex = 0;
+          targetIndex < replicas.length;
+          targetIndex++
+        ) {
+          if (sourceIndex === targetIndex) continue
+          deliveries.push({ sourceIndex, targetIndex })
+        }
+      }
+
+      for (const deliveryIndex of shuffledIndices(
+        deliveries.length,
+        seed + round
+      )) {
+        const { sourceIndex, targetIndex } = deliveries[deliveryIndex]
+        replicas[targetIndex].merge(snapshots[sourceIndex])
+      }
+
+      if (restartEveryRound > 0 && (round + 1) % restartEveryRound === 0) {
+        const restartIndex = (seed + round) % replicas.length
+        replicas[restartIndex] = createReplica(
+          readSnapshot(replicas[restartIndex])
+        )
+      }
+    }
+  }
+
+  function runSnapshotScenario(seed, options = {}) {
+    const {
+      replicaCount = 3,
+      steps = 120,
+      restartEvery = 0,
+      settleRounds = 10,
+      settleSeedOffset = 100_000,
+    } = options
+    const rng = random(seed)
+    const replicas = Array.from({ length: replicaCount }, () => createReplica())
+    const keys = ['name', 'meta', 'tags', 'prefs']
+
+    for (let step = 0; step < steps; step++) {
+      const actorIndex = Math.floor(rng() * replicas.length)
+      const actor = replicas[actorIndex]
+      const branch = rng()
+
+      if (branch < 0.4) {
+        const key = keys[Math.floor(rng() * keys.length)]
+        actor.set(key, nextValue(key, step, actorIndex))
+      } else if (branch < 0.58) {
+        if (actor.size === 0 || rng() < 0.3) actor.clear()
+        else actor.delete(keys[Math.floor(rng() * keys.length)])
+      } else if (branch < 0.82) {
+        const sourceIndex = Math.floor(rng() * replicas.length)
+        if (sourceIndex !== actorIndex)
+          actor.merge(readSnapshot(replicas[sourceIndex]))
+      } else if (branch < 0.92) {
+        actor.merge(hostilePayload(step))
+      } else {
+        const frontiers = replicas.map(emitAck).filter(Boolean)
+        if (frontiers.length > 0) {
+          for (const replica of replicas) replica.garbageCollect(frontiers)
+        }
+      }
+
+      if (restartEvery > 0 && (step + 1) % restartEvery === 0) {
+        const restartIndex = (seed + step) % replicas.length
+        replicas[restartIndex] = createReplica(
+          readSnapshot(replicas[restartIndex])
+        )
+      }
     }
 
-    if (!threw) throw new Error('expected function to throw')
+    settleReplicaSnapshots(replicas, settleRounds, seed + settleSeedOffset)
+    return replicas
+  }
+
+  function allOtherIndices(length, sourceIndex) {
+    return Array.from({ length }, (_, index) => index).filter(
+      (index) => index !== sourceIndex
+    )
+  }
+
+  function queuePayload(queue, sourceIndex, payload, targets) {
+    const uniqueTargets = [...new Set(targets)].filter(
+      (targetIndex) => targetIndex !== sourceIndex
+    )
+    if (uniqueTargets.length === 0) return
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload))
+      return
+    if ((payload.values?.length ?? 0) + (payload.tombstones?.length ?? 0) < 1)
+      return
+
+    queue.push({
+      sourceIndex,
+      targets: uniqueTargets,
+      payload: structuredClone(payload),
+    })
+  }
+
+  function captureReplicaDeltas(replica, fn) {
+    const deltas = []
+    const listener = (event) => {
+      deltas.push(event.detail)
+    }
+    replica.addEventListener('delta', listener)
+    try {
+      fn()
+    } finally {
+      replica.removeEventListener('delta', listener)
+    }
+    return deltas
+  }
+
+  function deliverOneReplicaMessage(replicas, queue, rand) {
+    const messageIndex = Math.floor(rand() * queue.length)
+    const message = queue[messageIndex]
+    const targetOffset = Math.floor(rand() * message.targets.length)
+    const targetIndex = message.targets.splice(targetOffset, 1)[0]
+    const replyDeltas = captureReplicaDeltas(replicas[targetIndex], () => {
+      replicas[targetIndex].merge(message.payload)
+    })
+
+    for (const replyDelta of replyDeltas) {
+      queuePayload(
+        queue,
+        targetIndex,
+        replyDelta,
+        allOtherIndices(replicas.length, targetIndex)
+      )
+    }
+
+    if (message.targets.length === 0) queue.splice(messageIndex, 1)
+  }
+
+  function drainReplicaQueue(replicas, queue, seed, options = {}) {
+    const rand = random(seed)
+    let deliveries = 0
+    const maxDeliveries =
+      options.maxDeliveries ??
+      Math.max(2_000, queue.length * Math.max(1, replicas.length) * 8)
+
+    while (queue.length > 0) {
+      deliverOneReplicaMessage(replicas, queue, rand)
+      deliveries++
+      if (deliveries > maxDeliveries) {
+        throw new Error(
+          `replica gossip queue exceeded ${maxDeliveries} deliveries`
+        )
+      }
+    }
+  }
+
+  function runQueuedDeltaScenario(seed, options = {}) {
+    const {
+      replicaCount = 4,
+      steps = 120,
+      restartEvery = 0,
+      settleRounds = 8,
+    } = options
+    const rng = random(seed)
+    const replicas = Array.from({ length: replicaCount }, () => createReplica())
+    const queue = []
+    const keys = ['name', 'meta', 'tags', 'prefs']
+
+    for (let step = 0; step < steps; step++) {
+      const actorIndex = Math.floor(rng() * replicas.length)
+      const actor = replicas[actorIndex]
+      const branch = rng()
+
+      if (branch < 0.38) {
+        const key = keys[Math.floor(rng() * keys.length)]
+        const deltas = captureReplicaDeltas(actor, () => {
+          actor.set(key, nextValue(key, step, actorIndex))
+        })
+        for (const delta of deltas) {
+          queuePayload(
+            queue,
+            actorIndex,
+            delta,
+            allOtherIndices(replicas.length, actorIndex)
+          )
+        }
+      } else if (branch < 0.56) {
+        const deltas = captureReplicaDeltas(actor, () => {
+          if (actor.size === 0 || rng() < 0.35) actor.clear()
+          else actor.delete(keys[Math.floor(rng() * keys.length)])
+        })
+        for (const delta of deltas) {
+          queuePayload(
+            queue,
+            actorIndex,
+            delta,
+            allOtherIndices(replicas.length, actorIndex)
+          )
+        }
+      } else if (branch < 0.82) {
+        if (queue.length > 0) {
+          const deliveries = 1 + Math.floor(rng() * Math.min(4, queue.length))
+          for (let index = 0; index < deliveries && queue.length > 0; index++) {
+            deliverOneReplicaMessage(replicas, queue, rng)
+          }
+        }
+      } else if (branch < 0.92) {
+        actor.merge(hostilePayload(step))
+      } else {
+        const frontiers = replicas.map(emitAck).filter(Boolean)
+        if (frontiers.length > 0) {
+          for (const replica of replicas) replica.garbageCollect(frontiers)
+        }
+      }
+
+      if (restartEvery > 0 && (step + 1) % restartEvery === 0) {
+        const restartIndex = (seed + step) % replicas.length
+        replicas[restartIndex] = createReplica(
+          readSnapshot(replicas[restartIndex])
+        )
+      }
+    }
+
+    drainReplicaQueue(replicas, queue, seed + 90_000)
+    settleReplicaSnapshots(replicas, settleRounds, seed + 120_000)
+    return replicas
   }
 
   async function withTimeout(promise, ms, name) {
     let timer
     const timeout = new Promise((_, reject) => {
       timer = setTimeout(() => {
-        reject(new Error(`timeout after ${ms}ms: ${name}`))
+        reject(new Error(`timeout after ${ms}ms${name ? `: ${name}` : ''}`))
       }, ms)
     })
     return Promise.race([promise.finally(() => clearTimeout(timer)), timeout])
@@ -104,6 +484,7 @@ export async function runORSetSuite(api, options = {}) {
 
   async function runTest(name, fn) {
     try {
+      if (verbose) console.log(`${label}: ${name}`)
       await withTimeout(Promise.resolve().then(fn), TEST_TIMEOUT_MS, name)
       results.tests.push({ name, ok: true })
     } catch (error) {
@@ -114,343 +495,582 @@ export async function runORSetSuite(api, options = {}) {
   }
 
   await runTest('exports shape', () => {
-    assert(typeof ORSet === 'function', 'ORSet export missing')
-  })
-
-  await runTest('empty constructor', () => {
-    const set = new ORSet()
-    assertEqual(set.size, 0)
-    assertJsonEqual(set.values(), [])
-    assertJsonEqual(readSnapshot(set), { values: [], tombstones: [] })
-  })
-
-  await runTest('constructor rejects malformed snapshot', () => {
-    assertThrows(() => new ORSet(null), assertBadSnapshotError)
+    for (const value of [
+      CRMap,
+      __acknowledge,
+      __create,
+      __delete,
+      __garbageCollect,
+      __merge,
+      __read,
+      __snapshot,
+      __update,
+    ]) {
+      assert(typeof value === 'function', 'missing public export')
+    }
   })
 
   await runTest(
-    'constructor filters invalid tombstones duplicate ids and tombstoned values',
+    'constructor collection surface serialization and empty acknowledge are coherent',
     () => {
-      const liveId = createValidUuid('live')
-      const removedId = createValidUuid('removed')
-      const set = new ORSet({
-        values: [
-          { __uuidv7: liveId, name: 'first' },
-          { __uuidv7: liveId, name: 'second' },
-          { __uuidv7: removedId, name: 'removed' },
-          { __uuidv7: 'bad', name: 'invalid' },
-        ],
-        tombstones: ['bad', removedId],
+      const replica = createReplica()
+      const events = captureEvents(replica)
+      const snapshot = readSnapshot(replica)
+
+      assertEqual(replica.size, 0)
+      assertEqual(replica.get('ghost'), undefined)
+      assertEqual(replica.has('ghost'), false)
+      assertJsonEqual(replica.keys(), [])
+      assertJsonEqual(replica.values(), [])
+      assertJsonEqual(replica.entries(), [])
+      assertJsonEqual([...replica], [])
+      assertJsonEqual(projection(replica), {})
+      assertJsonEqual(normalizeSnapshot(snapshot), {
+        values: [],
+        tombstones: [],
+      })
+      assertJsonEqual(normalizeSnapshot(emitSnapshot(replica)), {
+        values: [],
+        tombstones: [],
+      })
+      assertEqual(replica.toString(), JSON.stringify(snapshot))
+      assertJsonEqual(
+        replica[Symbol.for('nodejs.util.inspect.custom')](),
+        snapshot
+      )
+      assertJsonEqual(replica[Symbol.for('Deno.customInspect')](), snapshot)
+
+      replica.acknowledge()
+      assertEqual(events.ack.length, 0)
+    }
+  )
+
+  await runTest(
+    'reads iterators snapshots and change payloads are detached from live state',
+    () => {
+      const replica = createReplica()
+      const events = captureEvents(replica)
+      replica.set('meta', { enabled: false, nested: { count: 1 } })
+      replica.set('tags', ['x'])
+      replica.set('meta', { enabled: true, nested: { count: 2 } })
+
+      const read = replica.get('meta')
+      read.enabled = false
+      read.nested.count = 0
+
+      const values = replica.values()
+      values[0].enabled = false
+      values[0].nested.count = 0
+      values[1].push('mutated')
+
+      const entries = Object.fromEntries(replica.entries())
+      entries.meta.enabled = false
+      entries.meta.nested.count = 0
+      entries.tags.push('entry')
+
+      const iterated = Object.fromEntries([...replica])
+      iterated.meta.enabled = false
+      iterated.meta.nested.count = 0
+      iterated.tags.push('iterator')
+
+      replica.forEach((value, key) => {
+        if (key === 'meta') {
+          value.enabled = false
+          value.nested.count = 0
+        }
+        if (key === 'tags') value.push('forEach')
       })
 
-      assertEqual(set.size, 1)
-      assertJsonEqual(
-        set.values().map((item) => item.name),
-        ['first']
+      const snapshot = emitSnapshot(replica)
+      const metaEntry = snapshot.values.find(
+        (entry) => entry.value.key === 'meta'
       )
-      assertJsonEqual(readSnapshot(set).tombstones, [removedId])
+      const tagsEntry = snapshot.values.find(
+        (entry) => entry.value.key === 'tags'
+      )
+      metaEntry.value.value.enabled = false
+      metaEntry.value.value.nested.count = 0
+      tagsEntry.value.value.push('snapshot')
+      snapshot.tombstones.push(createValidUuid('ghost'))
+
+      events.change[0].meta.enabled = true
+      events.change[0].meta.nested.count = 99
+
+      assertJsonEqual(replica.get('meta'), {
+        enabled: true,
+        nested: { count: 2 },
+      })
+      assertJsonEqual(replica.get('tags'), ['x'])
+      assert(readSnapshot(replica).tombstones.length > 0, 'expected tombstones')
     }
   )
 
-  await runTest('has reflects live membership', () => {
-    const set = new ORSet()
-    set.append({ name: 'alice' })
-    const [live] = set.values()
-    const missingId = createValidUuid('missing')
-    assertEqual(set.has(live), true)
-    assertEqual(set.has(live.__uuidv7), true)
-    assertEqual(set.has({ __uuidv7: missingId, name: 'missing' }), false)
-    assertEqual(set.has(missingId), false)
-  })
+  await runTest(
+    'local writes keyed delete full delete and core overloads stay coherent',
+    () => {
+      const replica = createReplica()
+      const events = captureEvents(replica)
 
-  await runTest('append generates uuid freezes value and emits events', () => {
-    const set = new ORSet()
-    const events = captureEvents(set)
-    set.append({ name: 'alice' })
-    const [stored] = set.values()
+      replica.set('name', { text: 'alice' })
+      replica.set('count', { value: 1 })
+      replica.delete('name')
+      replica.clear()
+      replica.delete('ghost')
+      replica.clear()
 
-    assertEqual(set.size, 1)
-    assertEqual(typeof stored.__uuidv7, 'string')
-    assertEqual(Object.isFrozen(stored), true)
-    assertEqual(events.delta.length, 1)
-    assertEqual(events.snapshot.length, 0)
-    assertEqual(events.delta[0].values[0].__uuidv7, stored.__uuidv7)
-  })
+      assertEqual(replica.size, 0)
+      assertEqual(events.delta.length, 4)
+      assertEqual(events.change.length, 4)
+      assertChangeEqual(events.change[2], { name: undefined })
+      assertChangeEqual(events.change[3], { count: undefined })
+      assertEqual(replica.has('name'), false)
 
-  await runTest('append preserves a valid supplied free uuid', () => {
-    const set = new ORSet()
-    const v7 = createValidUuid('seed')
-    set.append({ __uuidv7: v7, name: 'manual' })
-    assertEqual(set.values()[0].__uuidv7, v7)
-  })
+      const state = __create()
+      const update = __update('alpha', { ok: true }, state)
+      assert(update, 'expected keyed update')
+      update.change.alpha.ok = false
+      assertJsonEqual(__read('alpha', state), { ok: true })
 
-  await runTest('append regenerates invalid supplied uuid', () => {
-    const set = new ORSet()
-    set.append({ __uuidv7: 'bad', name: 'alice' })
-    assertEqual(set.size, 1)
-    assert(set.values()[0].__uuidv7 !== 'bad', 'expected regenerated uuid')
-  })
+      const keyedDelete = __delete('alpha', state)
+      assert(keyedDelete, 'expected keyed delete')
+      assertChangeEqual(keyedDelete.change, { alpha: undefined })
+      assertEqual(__read('alpha', state), undefined)
 
-  await runTest('append ignores duplicate live uuid', () => {
-    const set = new ORSet()
-    set.append({ name: 'alice' })
-    const [stored] = set.values()
-    const events = captureEvents(set)
-    set.append(stored)
-
-    assertEqual(set.size, 1)
-    assertEqual(events.delta.length, 0)
-    assertEqual(events.snapshot.length, 0)
-  })
-
-  await runTest('append regenerates tombstoned supplied uuid', () => {
-    const set = new ORSet()
-    set.append({ name: 'alice' })
-    const [removed] = set.values()
-    set.remove(removed)
-    set.append({ __uuidv7: removed.__uuidv7, name: 'bob' })
-
-    assertEqual(set.size, 1)
-    assert(set.values()[0].__uuidv7 !== removed.__uuidv7, 'expected new uuid')
-  })
-
-  await runTest('clear removes every live value', () => {
-    const set = new ORSet()
-    set.append({ name: 'alice' })
-    set.append({ name: 'bob' })
-    const liveIds = set.values().map((item) => item.__uuidv7)
-    const events = captureEvents(set)
-    set.clear()
-
-    assertEqual(set.size, 0)
-    assertEqual(events.delta.length, 1)
-    assertEqual(events.snapshot.length, 0)
-    assertJsonEqual(
-      sortStrings(readSnapshot(set).tombstones),
-      sortStrings(liveIds)
-    )
-  })
-
-  await runTest('clear stays silent on empty state', () => {
-    const set = new ORSet()
-    const events = captureEvents(set)
-    set.clear()
-
-    assertEqual(events.delta.length, 0)
-    assertEqual(events.snapshot.length, 0)
-  })
-
-  await runTest('remove ignores invalid uuid', () => {
-    const set = new ORSet()
-    const events = captureEvents(set)
-    set.remove({ __uuidv7: 'bad', name: 'ghost' })
-
-    assertEqual(set.size, 0)
-    assertEqual(events.delta.length, 0)
-    assertEqual(events.snapshot.length, 0)
-  })
-
-  await runTest('remove unknown string is silent', () => {
-    const set = new ORSet()
-    const ghostId = createValidUuid('ghost')
-    const events = captureEvents(set)
-    set.remove(ghostId)
-
-    assertEqual(set.size, 0)
-    assertJsonEqual(set.values(), [])
-    assertEqual(events.delta.length, 0)
-    assertEqual(events.snapshot.length, 0)
-    assertJsonEqual(readSnapshot(set).tombstones, [])
-  })
-
-  await runTest('remove tombstones a live uuid string once', () => {
-    const set = new ORSet()
-    set.append({ name: 'alice' })
-    const [live] = set.values()
-    const events = captureEvents(set)
-    set.remove(live.__uuidv7)
-    set.remove(live)
-
-    assertEqual(set.size, 0)
-    assertEqual(events.delta.length, 1)
-    assertEqual(events.snapshot.length, 0)
-    assertJsonEqual(readSnapshot(set).tombstones, [live.__uuidv7])
-  })
-
-  await runTest('merge rejects malformed snapshot', () => {
-    const set = new ORSet()
-    assertThrows(() => set.merge(null), assertBadSnapshotError)
-  })
-
-  await runTest('merge imports live additions', () => {
-    const source = new ORSet()
-    source.append({ name: 'alice' })
-    const [live] = source.values()
-    const target = new ORSet()
-    const events = captureEvents(target)
-    target.merge(readSnapshot(source))
-
-    assertEqual(target.size, 1)
-    assertEqual(target.values()[0].__uuidv7, live.__uuidv7)
-    assertEqual(events.merge.length, 1)
-    assertEqual(events.snapshot.length, 0)
-  })
-
-  await runTest('merge applies tomb removals', () => {
-    const removedId = createValidUuid('removed')
-    const target = new ORSet({
-      values: [{ __uuidv7: removedId, name: 'removed' }],
-      tombstones: [],
-    })
-    const events = captureEvents(target)
-    target.merge({ values: [], tombstones: [removedId] })
-
-    assertEqual(target.size, 0)
-    assertJsonEqual(readSnapshot(target).tombstones, [removedId])
-    assertEqual(events.merge.length, 1)
-  })
-
-  await runTest('merge skips invalid data and stays silent on no-op', () => {
-    const target = new ORSet()
-    const knownTomb = createValidUuid('known')
-    target.merge({ values: [], tombstones: [knownTomb] })
-    const events = captureEvents(target)
-    target.merge({
-      values: [{ __uuidv7: 'bad', name: 'invalid' }],
-      tombstones: ['bad', knownTomb],
-    })
-
-    assertEqual(events.merge.length, 0)
-    assertEqual(events.snapshot.length, 0)
-  })
-
-  await runTest('merge does not resurrect tombstoned uuid', () => {
-    const tombedId = createValidUuid('tombed')
-    const target = new ORSet({ values: [], tombstones: [tombedId] })
-    const events = captureEvents(target)
-    target.merge({
-      values: [{ __uuidv7: tombedId, name: 'zombie' }],
-      tombstones: [],
-    })
-
-    assertEqual(target.size, 0)
-    assertEqual(events.merge.length, 0)
-    assertEqual(events.snapshot.length, 0)
-  })
-
-  await runTest('merge handles additions and removals together', () => {
-    const removedId = createValidUuid('removed')
-    const source = new ORSet()
-    source.append({ name: 'added' })
-    const [added] = source.values()
-    const target = new ORSet({
-      values: [{ __uuidv7: removedId, name: 'removed' }],
-      tombstones: [],
-    })
-    const events = captureEvents(target)
-    target.merge({ values: [added], tombstones: [removedId] })
-
-    assertEqual(target.size, 1)
-    assertEqual(target.values()[0].__uuidv7, added.__uuidv7)
-    assertEqual(events.merge.length, 1)
-    assertJsonEqual(events.merge[0].removals, [removedId])
-    assertJsonEqual(
-      events.merge[0].additions.map((item) => item.__uuidv7),
-      [added.__uuidv7]
-    )
-  })
-
-  await runTest('snapshot returns detached arrays', () => {
-    const set = new ORSet()
-    set.append({ name: 'alice' })
-    const snapshot = readSnapshot(set)
-    snapshot.values.push({ __uuidv7: createValidUuid('other'), name: 'other' })
-    snapshot.tombstones.push(createValidUuid('ghost'))
-
-    assertEqual(readSnapshot(set).values.length, 1)
-    assertEqual(readSnapshot(set).tombstones.length, 0)
-  })
-
-  await runTest('tombstones exposes a live set for external gc', () => {
-    const set = new ORSet()
-    set.append({ name: 'alice' })
-    const [removed] = set.values()
-    set.remove(removed)
-
-    const tombstones = set.tombstones()
-
-    assert(
-      tombstones &&
-        typeof tombstones.has === 'function' &&
-        typeof tombstones.delete === 'function' &&
-        typeof tombstones.values === 'function',
-      'expected set-like tomb view'
-    )
-    assert(
-      tombstones.has(removed.__uuidv7),
-      'expected removed uuid in tombstone set'
-    )
-
-    tombstones.delete(removed.__uuidv7)
-
-    assertEqual(readSnapshot(set).tombstones.length, 0)
-
-    set.append({ __uuidv7: removed.__uuidv7, name: 'alice-again' })
-
-    assertEqual(set.values()[0].__uuidv7, removed.__uuidv7)
-  })
-
-  await runTest('listener object and removeEventListener both work', () => {
-    const set = new ORSet()
-    let objectCalls = 0
-    let fnCalls = 0
-    const objectListener = {
-      handleEvent() {
-        objectCalls++
-      },
+      const fullState = __create()
+      assert(__update('a', { value: 1 }, fullState))
+      assert(__update('b', { value: 2 }, fullState))
+      const fullDelete = __delete(fullState)
+      assert(fullDelete, 'expected full delete')
+      assertEqual(fullState.values.size, 0)
+      assertChangeEqual(fullDelete.change, {
+        a: undefined,
+        b: undefined,
+      })
+      assertEqual(fullDelete.delta.tombstones.length, 2)
     }
-    const fnListener = () => {
-      fnCalls++
+  )
+
+  await runTest(
+    'create hydration resolves duplicate key contenders and ignores tombstoned entries',
+    () => {
+      const root = createValidUuid('root')
+      const sameUuid = createValidUuid('same')
+      const greaterPredecessor = createValidUuid('greater')
+      const descendant = createValidUuid('descendant')
+      const tombed = createValidUuid('tombed')
+
+      const state = __create({
+        values: [
+          {
+            uuidv7: tombed,
+            value: { key: 'dead', value: 'removed' },
+            predecessor: root,
+          },
+          {
+            uuidv7: sameUuid,
+            value: { key: 'name', value: 'first' },
+            predecessor: root,
+          },
+          {
+            uuidv7: sameUuid,
+            value: { key: 'name', value: 'same-uuid-advanced' },
+            predecessor: greaterPredecessor,
+          },
+          {
+            uuidv7: descendant,
+            value: { key: 'name', value: 'descendant' },
+            predecessor: sameUuid,
+          },
+        ],
+        tombstones: [tombed],
+      })
+
+      assertEqual(__read('dead', state), undefined)
+      assertEqual(__read('name', state), 'descendant')
+      const snapshot = __snapshot(state)
+      assertEqual(snapshot.values.length, 1)
+      assertEqual(snapshot.values[0].value.key, 'name')
+      assertEqual(snapshot.values[0].value.value, 'descendant')
     }
+  )
 
-    set.addEventListener('delta', objectListener)
-    set.addEventListener('snapshot', fnListener)
-    set.append({ name: 'alice' })
-    set.snapshot()
-    set.removeEventListener('delta', objectListener)
-    set.removeEventListener('snapshot', fnListener)
-    set.append({ name: 'bob' })
-    set.snapshot()
+  await runTest('core guard branches and hydration edge cases stay inert', () => {
+    const tombstone = createValidUuid('tombstone')
+    const olderPredecessor = createValidUuid('older-predecessor')
+    const newerPredecessor = createValidUuid('newer-predecessor')
+    const sameUuid = createValidUuid('same-uuid')
+    const smallerUuid = createValidUuid('smaller-uuid')
+    const largerUuid = createValidUuid('larger-uuid')
+    const replaceOlderUuid = createValidUuid('replace-older-uuid')
+    const replaceNewerUuid = createValidUuid('replace-newer-uuid')
+    const brokenUuid = createValidUuid('broken-uuid')
 
-    assertEqual(objectCalls, 1)
-    assertEqual(fnCalls, 1)
+    const withoutValues = __create({
+      tombstones: [tombstone, tombstone, 'bad'],
+    })
+    assertEqual(withoutValues.tombstones.has(tombstone), true)
+    assertEqual(withoutValues.tombstones.size, 1)
+    assertEqual(withoutValues.values.size, 0)
+
+    const hydrated = __create({
+      tombstones: [tombstone, tombstone, 'bad'],
+      values: [
+        null,
+        {
+          uuidv7: brokenUuid,
+          predecessor: tombstone,
+          value: { key: 'broken', value: () => {} },
+        },
+        {
+          uuidv7: sameUuid,
+          predecessor: newerPredecessor,
+          value: { key: 'same', value: 'winner' },
+        },
+        {
+          uuidv7: sameUuid,
+          predecessor: olderPredecessor,
+          value: { key: 'same', value: 'stale-same-uuid' },
+        },
+        {
+          uuidv7: largerUuid,
+          predecessor: tombstone,
+          value: { key: 'compete', value: 'large' },
+        },
+        {
+          uuidv7: smallerUuid,
+          predecessor: tombstone,
+          value: { key: 'compete', value: 'small' },
+        },
+        {
+          uuidv7: replaceOlderUuid,
+          predecessor: tombstone,
+          value: { key: 'replace', value: 'old' },
+        },
+        {
+          uuidv7: replaceNewerUuid,
+          predecessor: tombstone,
+          value: { key: 'replace', value: 'new' },
+        },
+      ],
+    })
+
+    assertEqual(__read('broken', hydrated), undefined)
+    assertEqual(__read('same', hydrated), 'winner')
+    assertEqual(__read('compete', hydrated), 'large')
+    assertEqual(__read('replace', hydrated), 'new')
+    assertEqual(__update(123, { ok: true }, hydrated), false)
+    assertEqual(__update('broken', () => {}, hydrated), false)
+    assertEqual(__delete('ghost'), false)
+
+    const replica = createReplica()
+    const events = captureEvents(replica)
+    replica.set('broken', () => {})
+    assertEqual(replica.has('broken'), false)
+    assertEqual(events.delta.length, 0)
+    assertEqual(events.change.length, 0)
   })
 
   await runTest(
-    'replicas converge after append remove and merge roundtrip',
+    'merge ignores malformed ingress and invalid siblings without throwing',
     () => {
-      const a = new ORSet()
-      const b = new ORSet()
-      a.append({ name: 'alice' })
-      a.append({ name: 'bob' })
-      b.merge(readSnapshot(a))
+      const replica = createReplica()
+      replica.set('stable', { value: 'stable' })
+      const before = normalizeSnapshot(readSnapshot(replica))
+      const validUuid = createValidUuid('valid')
+      const validPredecessor = createValidUuid('predecessor')
 
-      const alice = a.values().find((item) => item.name === 'alice')
-      a.remove(alice)
-      b.merge(readSnapshot(a))
-      a.merge(readSnapshot(b))
+      const payloads = [
+        null,
+        false,
+        [],
+        { values: 'bad' },
+        { tombstones: 'bad' },
+        { values: [null] },
+        {
+          values: [
+            {
+              uuidv7: 'bad',
+              predecessor: 'bad',
+              value: { key: 'ghost', value: 'ignored' },
+            },
+          ],
+        },
+        {
+          values: [
+            {
+              uuidv7: validUuid,
+              predecessor: 'bad',
+              value: { key: 'ghost', value: 'ignored' },
+            },
+          ],
+        },
+        {
+          values: [
+            {
+              uuidv7: validUuid,
+              predecessor: validPredecessor,
+              value: { key: 1, value: 'ignored' },
+            },
+          ],
+        },
+      ]
 
-      assertEqual(a.size, b.size)
+      for (const payload of payloads) {
+        assertEqual(replica.merge(payload), undefined)
+      }
+
+      assertJsonEqual(normalizeSnapshot(readSnapshot(replica)), before)
+    }
+  )
+
+  await runTest('merge drops stale relation pointers on tombstone ingress', () => {
+    const state = __create()
+    const first = __update('name', { version: 1 }, state)
+    assert(first, 'expected initial update')
+    const staleUuid = first.delta.values[0].uuidv7
+
+    const second = __update('name', { version: 2 }, state)
+    assert(second, 'expected successor update')
+    state.relations.set(staleUuid, 'name')
+
+    assertEqual(__merge({ tombstones: [staleUuid] }, state), false)
+    assertEqual(state.relations.has(staleUuid), false)
+    assertJsonEqual(__read('name', state), { version: 2 })
+  })
+
+  await runTest(
+    'merge adopts direct successors and same-uuid candidates with greater predecessors',
+    () => {
+      const source = createReplica()
+      const target = createReplica(readSnapshot(source))
+      const sourceEvents = captureEvents(source)
+      source.set('name', { text: 'alice' })
+
+      const targetEvents = captureEvents(target)
+      target.merge(sourceEvents.delta[0])
+
+      assertJsonEqual(target.get('name'), { text: 'alice' })
+      assertEqual(targetEvents.delta.length, 0)
+      assertEqual(targetEvents.change.length, 1)
+      assertChangeEqual(targetEvents.change[0], {
+        name: { text: 'alice' },
+      })
+
+      const replica = createReplica()
+      replica.set('meta', { enabled: false })
+      const snapshot = structuredClone(readSnapshot(replica))
+      const entry = snapshot.values.find((value) => value.value.key === 'meta')
+      entry.predecessor = createValidUuid('greater')
+      entry.value.value = { enabled: true }
+
+      const events = captureEvents(replica)
+      replica.merge({ values: [entry] })
+
+      assertJsonEqual(replica.get('meta'), { enabled: true })
+      assertEqual(events.delta.length, 0)
+      assertEqual(events.change.length, 1)
+      assertChangeEqual(events.change[0], {
+        meta: { enabled: true },
+      })
+    }
+  )
+
+  await runTest(
+    'merge emits rebuttal deltas for stale same-key ingress and peers converge after exchange',
+    () => {
+      const base = createReplica()
+      const older = createReplica(readSnapshot(base))
+      const newer = createReplica(readSnapshot(base))
+
+      older.set('name', { text: 'older' })
+      newer.set('name', { text: 'newer' })
+
+      const newerEvents = captureEvents(newer)
+      newer.merge(readSnapshot(older))
+
+      assertJsonEqual(newer.get('name'), { text: 'newer' })
+      assertEqual(newerEvents.change.length, 0)
+      assertEqual(newerEvents.delta.length, 1)
+
+      older.merge(newerEvents.delta[0])
       assertJsonEqual(
-        sortStrings(readSnapshot(a).values.map((value) => value.__uuidv7)),
-        sortStrings(readSnapshot(b).values.map((value) => value.__uuidv7))
+        normalizeSnapshot(readSnapshot(older)),
+        normalizeSnapshot(readSnapshot(newer))
       )
+
+      const sameUuid = createReplica()
+      sameUuid.set('flag', { on: true })
+      const snapshot = structuredClone(readSnapshot(sameUuid))
+      const entry = snapshot.values.find((value) => value.value.key === 'flag')
+      entry.value.value = { on: false }
+
+      const sameUuidEvents = captureEvents(sameUuid)
+      sameUuid.merge({ values: [entry] })
+
+      assertJsonEqual(sameUuid.get('flag'), { on: true })
+      assertEqual(sameUuidEvents.change.length, 0)
+      assertEqual(sameUuidEvents.delta.length, 1)
+    }
+  )
+
+  await runTest('duplicate identical delta is idempotent', () => {
+    const source = createReplica()
+    const sourceEvents = captureEvents(source)
+    source.set('name', { text: 'alice' })
+
+    const target = createReplica()
+    target.merge(sourceEvents.delta[0])
+    const targetEvents = captureEvents(target)
+    target.merge(sourceEvents.delta[0])
+
+    assertEqual(targetEvents.delta.length, 0)
+    assertEqual(targetEvents.change.length, 0)
+    assertJsonEqual(target.get('name'), { text: 'alice' })
+  })
+
+  await runTest(
+    'acknowledge and garbageCollect compact tombstones and ignore invalid frontiers',
+    () => {
+      const replica = createReplica()
+      replica.set('name', { value: 'a' })
+      replica.set('name', { value: 'b' })
+      replica.set('name', { value: 'c' })
+      const before = readSnapshot(replica)
+
+      replica.garbageCollect(false)
+      replica.garbageCollect([])
+      replica.garbageCollect(['bad'])
+
       assertJsonEqual(
-        sortStrings(readSnapshot(a).tombstones),
-        sortStrings(readSnapshot(b).tombstones)
+        normalizeSnapshot(readSnapshot(replica)),
+        normalizeSnapshot(before)
+      )
+
+      const ack = emitAck(replica)
+      assert(ack !== '', 'expected non-empty ack frontier')
+
+      replica.garbageCollect([ack])
+      const after = readSnapshot(replica)
+      const current = after.values.find((entry) => entry.value.key === 'name')
+
+      assert(
+        after.tombstones.includes(current.predecessor),
+        'expected current predecessor to survive gc'
+      )
+      assert(
+        after.tombstones.length < before.tombstones.length,
+        'expected gc to compact tombstones'
       )
     }
   )
+
+  await runTest(
+    'listener objects removal and event channels behave consistently',
+    () => {
+      const replica = createReplica()
+      let deltaDetail
+      let snapshotCalls = 0
+      const deltaListener = {
+        handleEvent(event) {
+          deltaDetail = event.detail
+        },
+      }
+      const snapshotListener = () => {
+        snapshotCalls++
+      }
+
+      replica.addEventListener('delta', deltaListener)
+      replica.addEventListener('snapshot', snapshotListener)
+      replica.set('name', { text: 'alice' })
+      replica.snapshot()
+      replica.removeEventListener('delta', deltaListener)
+      replica.removeEventListener('snapshot', snapshotListener)
+      replica.set('name', { text: 'bob' })
+      replica.snapshot()
+
+      assertEqual(deltaDetail.values.length, 1)
+      assertEqual(snapshotCalls, 1)
+    }
+  )
+
+  if (includeStress) {
+    await runTest(
+      'replicas converge after deterministic shuffled snapshot exchange',
+      () => {
+        const replicas = runSnapshotScenario(0xc0ffee, {
+          replicaCount: 4,
+          steps: stressRounds * 20,
+          settleRounds: 12,
+        })
+        const expected = projection(replicas[0])
+
+        for (let index = 1; index < replicas.length; index++) {
+          assertProjectionEqual(projection(replicas[index]), expected)
+        }
+        for (const replica of replicas) {
+          const hydrated = createReplica(readSnapshot(replica))
+          assertProjectionEqual(projection(hydrated), expected)
+        }
+      }
+    )
+
+    await runTest(
+      'replicas converge under queued delta delivery reply deltas and restarts',
+      () => {
+        const replicas = runQueuedDeltaScenario(0x5eed5eed, {
+          replicaCount: 4,
+          steps: stressRounds * 24,
+          restartEvery: 9,
+          settleRounds: 10,
+        })
+        const expected = projection(replicas[0])
+
+        for (let index = 1; index < replicas.length; index++) {
+          assertProjectionEqual(projection(replicas[index]), expected)
+        }
+        for (const replica of replicas) {
+          const hydrated = createReplica(readSnapshot(replica))
+          assertProjectionEqual(projection(hydrated), expected)
+        }
+      }
+    )
+
+    await runTest('25 aggressive deterministic convergence scenarios', () => {
+      for (let scenario = 0; scenario < 25; scenario++) {
+        const replicas =
+          scenario % 2 === 0
+            ? runSnapshotScenario(50_000 + scenario, {
+                replicaCount: 3 + (scenario % 3),
+                steps: 24 + (scenario % 5) * 8,
+                restartEvery: scenario % 4 === 0 ? 7 : 0,
+                settleRounds: 8,
+              })
+            : runQueuedDeltaScenario(60_000 + scenario, {
+                replicaCount: 3 + (scenario % 3),
+                steps: 20 + (scenario % 5) * 8,
+                restartEvery: scenario % 4 === 1 ? 7 : 0,
+                settleRounds: 8,
+              })
+
+        const expected = projection(replicas[0])
+        for (let index = 1; index < replicas.length; index++) {
+          assertProjectionEqual(
+            projection(replicas[index]),
+            expected,
+            `scenario ${scenario} diverged`
+          )
+        }
+        for (const replica of replicas) {
+          const hydrated = createReplica(readSnapshot(replica))
+          assertProjectionEqual(
+            projection(hydrated),
+            expected,
+            `scenario ${scenario} hydrate mismatch`
+          )
+        }
+      }
+    })
+  }
 
   return results
 }

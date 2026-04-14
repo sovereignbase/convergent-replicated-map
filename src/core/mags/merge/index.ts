@@ -86,6 +86,12 @@ export function __merge<T>(
         crMapReplica.tombstones.add(contender.predecessor)
         change[contender.value.key] = structuredClone(contender.value.value)
         hasChange = true
+      } else if (
+        currentEntry.predecessor === contender.predecessor &&
+        JSON.stringify(currentEntry.value.value) ===
+          JSON.stringify(contender.value.value)
+      ) {
+        continue
       } else {
         if (!delta.values) delta.values = []
         delta.values.push(transformStateEntryToSnapshotEntry(currentEntry))

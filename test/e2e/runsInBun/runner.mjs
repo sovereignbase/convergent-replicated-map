@@ -1,6 +1,6 @@
 import { createRequire } from 'node:module'
 import * as esmApi from '../../../dist/index.js'
-import { ensurePassing, printResults, runORSetSuite } from '../shared/suite.mjs'
+import { ensurePassing, printResults, runCRMapSuite } from '../shared/suite.mjs'
 
 const require = createRequire(import.meta.url)
 const cjsApi = require('../../../dist/index.cjs')
@@ -9,7 +9,7 @@ for (const [label, api] of [
   ['bun esm', esmApi],
   ['bun cjs', cjsApi],
 ]) {
-  const results = await runORSetSuite(api, { label })
+  const results = await runCRMapSuite(api, { label })
   printResults(results)
   ensurePassing(results)
 }

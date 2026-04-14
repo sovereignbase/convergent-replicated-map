@@ -25,8 +25,7 @@ export function __garbageCollect<T>(
   if (smallest === '') return
 
   crMapReplica.tombstones.forEach((tombstone, _, tombstones) => {
-    if (tombstone > smallest || crMapReplica.predecessors.has(tombstone))
-      return
+    if (tombstone > smallest || crMapReplica.predecessors.has(tombstone)) return
     tombstones.delete(tombstone)
   })
 }

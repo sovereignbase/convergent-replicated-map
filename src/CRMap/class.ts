@@ -164,8 +164,9 @@ export class CRMap<T> {
     const result = __merge<T>(delta, this.state)
     if (!result) return
     if (
-      (result.delta.values?.length ?? 0) + (result.delta.tombstones?.length ?? 0)
-      > 0
+      (result.delta.values?.length ?? 0) +
+        (result.delta.tombstones?.length ?? 0) >
+      0
     ) {
       void this.eventTarget.dispatchEvent(
         new CustomEvent('delta', { detail: result.delta })

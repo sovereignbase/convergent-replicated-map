@@ -1,5 +1,5 @@
 import * as api from '../../../dist/index.js'
-import { runORSetSuite } from '../shared/suite.mjs'
+import { runCRMapSuite } from '../shared/suite.mjs'
 
 export default {
   async fetch(request) {
@@ -8,7 +8,7 @@ export default {
     }
 
     try {
-      const results = await runORSetSuite(api, {
+      const results = await runCRMapSuite(api, {
         label: 'cloudflare-workers esm',
       })
 

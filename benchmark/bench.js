@@ -1,293 +1,723 @@
-import { performance } from 'node:perf_hooks'
-import { v7 as uuidv7 } from 'uuid'
-import { ORSet } from '../dist/index.js'
+import {
+  CRMap,
+  __acknowledge,
+  __create,
+  __delete,
+  __garbageCollect,
+  __merge,
+  __read,
+  __snapshot,
+  __update,
+} from '../dist/index.js'
 
-function formatOps(iterations, durationMs) {
-  const opsPerSec = Math.round((iterations / durationMs) * 1000)
-  const ms = durationMs.toFixed(1)
-  return `${opsPerSec.toLocaleString()} ops/s (${ms} ms)`
+const MAP_SIZE = 5_000
+const OPS = 250
+const SEED_REVISIONS = 2
+
+const BENCHMARKS = [
+  {
+    group: 'crud',
+    name: 'create / hydrate snapshot',
+    n: MAP_SIZE,
+    ops: OPS,
+  },
+  {
+    group: 'crud',
+    name: 'read / primitive key hit',
+    n: MAP_SIZE,
+    ops: OPS,
+  },
+  {
+    group: 'crud',
+    name: 'read / object key hit',
+    n: MAP_SIZE,
+    ops: OPS,
+  },
+  {
+    group: 'crud',
+    name: 'read / missing key',
+    n: MAP_SIZE,
+    ops: OPS,
+  },
+  {
+    group: 'crud',
+    name: 'update / overwrite string',
+    n: MAP_SIZE,
+    ops: OPS,
+  },
+  {
+    group: 'crud',
+    name: 'update / overwrite object',
+    n: MAP_SIZE,
+    ops: OPS,
+  },
+  {
+    group: 'crud',
+    name: 'delete / single key',
+    n: MAP_SIZE,
+    ops: OPS,
+  },
+  {
+    group: 'crud',
+    name: 'delete / clear all',
+    n: MAP_SIZE,
+    ops: OPS,
+  },
+  { group: 'mags', name: 'snapshot', n: MAP_SIZE, ops: OPS },
+  { group: 'mags', name: 'acknowledge', n: MAP_SIZE, ops: OPS },
+  { group: 'mags', name: 'garbage collect', n: MAP_SIZE, ops: OPS },
+  {
+    group: 'mags',
+    name: 'merge ordered deltas',
+    n: MAP_SIZE,
+    ops: OPS,
+  },
+  {
+    group: 'mags',
+    name: 'merge direct successor',
+    n: MAP_SIZE,
+    ops: OPS,
+  },
+  {
+    group: 'mags',
+    name: 'merge shuffled gossip',
+    n: MAP_SIZE,
+    ops: OPS,
+  },
+  {
+    group: 'mags',
+    name: 'merge stale conflict',
+    n: MAP_SIZE,
+    ops: OPS,
+  },
+  {
+    group: 'class',
+    name: 'constructor / hydrate snapshot',
+    n: MAP_SIZE,
+    ops: OPS,
+  },
+  {
+    group: 'class',
+    name: 'get / primitive key',
+    n: MAP_SIZE,
+    ops: OPS,
+  },
+  {
+    group: 'class',
+    name: 'get / object key',
+    n: MAP_SIZE,
+    ops: OPS,
+  },
+  {
+    group: 'class',
+    name: 'has / live key',
+    n: MAP_SIZE,
+    ops: OPS,
+  },
+  { group: 'class', name: 'keys()', n: MAP_SIZE, ops: OPS },
+  { group: 'class', name: 'values()', n: MAP_SIZE, ops: OPS },
+  { group: 'class', name: 'entries()', n: MAP_SIZE, ops: OPS },
+  { group: 'class', name: 'set / string', n: MAP_SIZE, ops: OPS },
+  { group: 'class', name: 'set / object', n: MAP_SIZE, ops: OPS },
+  { group: 'class', name: 'delete(key)', n: MAP_SIZE, ops: OPS },
+  { group: 'class', name: 'clear()', n: MAP_SIZE, ops: OPS },
+  { group: 'class', name: 'snapshot', n: MAP_SIZE, ops: OPS },
+  { group: 'class', name: 'acknowledge', n: MAP_SIZE, ops: OPS },
+  { group: 'class', name: 'garbage collect', n: MAP_SIZE, ops: OPS },
+  {
+    group: 'class',
+    name: 'merge ordered deltas',
+    n: MAP_SIZE,
+    ops: OPS,
+  },
+  {
+    group: 'class',
+    name: 'merge direct successor',
+    n: MAP_SIZE,
+    ops: OPS,
+  },
+  {
+    group: 'class',
+    name: 'merge shuffled gossip',
+    n: MAP_SIZE,
+    ops: OPS,
+  },
+]
+
+function random(seed) {
+  let state = seed >>> 0
+  return () => {
+    state = (Math.imul(state, 1_664_525) + 1_013_904_223) >>> 0
+    return state / 0x1_0000_0000
+  }
 }
 
-function section(name) {
-  console.log(`\n${name}`)
+function shuffledIndices(length, seed) {
+  const indices = Array.from({ length }, (_, index) => index)
+  const rand = random(seed)
+  for (let index = indices.length - 1; index > 0; index--) {
+    const nextIndex = Math.floor(rand() * (index + 1))
+    ;[indices[index], indices[nextIndex]] = [indices[nextIndex], indices[index]]
+  }
+  return indices
 }
 
-function bench(name, iterations, fn) {
-  const warmupIterations = Math.min(
-    200,
-    Math.max(10, Math.ceil(iterations / 20))
-  )
-
-  for (let index = 0; index < warmupIterations; index++) fn()
-
-  const start = performance.now()
-  for (let index = 0; index < iterations; index++) fn()
-  const duration = performance.now() - start
-
-  console.log(`${name.padEnd(28)} ${formatOps(iterations, duration)}`)
+function key(index) {
+  return `key:${index}`
 }
 
-function createValue(index, prefix) {
+function stringValue(index, prefix = 'value') {
+  return `${prefix}:${index}`
+}
+
+function objectValue(index, prefix = 'value') {
   return {
-    __uuidv7: uuidv7(),
-    name: `${prefix}-${index}`,
-    group: index % 16,
-    index,
-  }
-}
-
-function createValues(count, prefix) {
-  const values = []
-  for (let index = 0; index < count; index++) {
-    values.push(createValue(index, prefix))
-  }
-  return values
-}
-
-function createAppendInput(index, prefix) {
-  return {
-    name: `${prefix}-${index}`,
-    group: index % 16,
-    index,
-  }
-}
-
-function createAppendInputs(count, prefix) {
-  const values = []
-  for (let index = 0; index < count; index++) {
-    values.push(createAppendInput(index, prefix))
-  }
-  return values
-}
-
-function createSnapshot(values, tombstones = []) {
-  return { values, tombstones }
-}
-
-function readSnapshot(set) {
-  let snapshot
-
-  set.addEventListener(
-    'snapshot',
-    (event) => {
-      snapshot = event.detail
+    id: index,
+    meta: {
+      label: `${prefix}:${index}`,
+      even: index % 2 === 0,
     },
-    { once: true }
-  )
-  set.snapshot()
+  }
+}
 
+function mixedValue(index, prefix = 'value') {
+  return index % 2 === 0
+    ? stringValue(index, prefix)
+    : objectValue(index, prefix)
+}
+
+function createSeededState(size, revisions = SEED_REVISIONS) {
+  const state = __create()
+  for (let revision = 0; revision < revisions; revision++) {
+    for (let index = 0; index < size; index++) {
+      const result = __update(
+        key(index),
+        mixedValue(index + revision * size, `seed-${revision}`),
+        state
+      )
+      if (!result)
+        throw new Error(`seed update failed at ${revision}:${index}`)
+    }
+  }
+  return state
+}
+
+function createSnapshot(size) {
+  return __snapshot(createSeededState(size))
+}
+
+function createSeededMap(size) {
+  return new CRMap(createSnapshot(size))
+}
+
+function readClassDelta(replica, action) {
+  let delta
+  const listener = (event) => {
+    delta = event.detail
+  }
+  replica.addEventListener('delta', listener)
+  try {
+    action()
+  } finally {
+    replica.removeEventListener('delta', listener)
+  }
+  return delta
+}
+
+function readClassSnapshot(replica) {
+  let snapshot
+  const listener = (event) => {
+    snapshot = event.detail
+  }
+  replica.addEventListener('snapshot', listener)
+  try {
+    replica.snapshot()
+  } finally {
+    replica.removeEventListener('snapshot', listener)
+  }
   return snapshot
 }
 
+function readClassAck(replica) {
+  let ack
+  const listener = (event) => {
+    ack = event.detail
+  }
+  replica.addEventListener('ack', listener)
+  try {
+    replica.acknowledge()
+  } finally {
+    replica.removeEventListener('ack', listener)
+  }
+  return ack
+}
+
+function collectOrderedCoreDeltas(source, amount, offset) {
+  const deltas = []
+  for (let index = 0; index < amount; index++) {
+    const result = __update(
+      key(index % 64),
+      mixedValue(offset + index, 'delta'),
+      source
+    )
+    if (!result) throw new Error(`ordered core delta failed at ${index}`)
+    deltas.push(result.delta)
+  }
+  return deltas
+}
+
+function collectMixedCoreDeltas(source, amount, offset) {
+  const deltas = []
+  const rand = random(0xc0ffee)
+
+  for (let index = 0; index < amount; index++) {
+    let result = false
+
+    if (index % 9 === 0 && source.values.size > 0) result = __delete(source)
+    else if (index % 4 === 0 && source.values.size > 0) {
+      const liveKeys = Array.from(source.values.keys())
+      const liveKey = liveKeys[Math.floor(rand() * liveKeys.length)]
+      result = __delete(source, liveKey)
+    } else {
+      result = __update(
+        key(Math.floor(rand() * Math.max(1, MAP_SIZE))),
+        mixedValue(offset + index, 'mixed'),
+        source
+      )
+    }
+
+    if (!result) {
+      result = __update(
+        key(Math.floor(rand() * Math.max(1, MAP_SIZE))),
+        mixedValue(offset + index, 'fallback'),
+        source
+      )
+    }
+    if (!result) throw new Error(`mixed core delta failed at ${index}`)
+    deltas.push(result.delta)
+  }
+  return deltas
+}
+
+function collectOrderedClassDeltas(source, amount, offset) {
+  const deltas = []
+  for (let index = 0; index < amount; index++) {
+    const delta = readClassDelta(source, () => {
+      source.set(key(index % 64), mixedValue(offset + index, 'delta'))
+    })
+    if (!delta) throw new Error(`ordered class delta failed at ${index}`)
+    deltas.push(delta)
+  }
+  return deltas
+}
+
+function collectMixedClassDeltas(source, amount, offset) {
+  const deltas = []
+  const rand = random(0xc0ffee)
+
+  for (let index = 0; index < amount; index++) {
+    let delta
+
+    if (index % 9 === 0 && source.size > 0) {
+      delta = readClassDelta(source, () => {
+        source.clear()
+      })
+    } else if (index % 4 === 0 && source.size > 0) {
+      const liveKeys = source.keys()
+      const liveKey = liveKeys[Math.floor(rand() * liveKeys.length)]
+      delta = readClassDelta(source, () => {
+        source.delete(liveKey)
+      })
+    } else {
+      delta = readClassDelta(source, () => {
+        source.set(
+          key(Math.floor(rand() * Math.max(1, MAP_SIZE))),
+          mixedValue(offset + index, 'mixed')
+        )
+      })
+    }
+
+    if (!delta) {
+      delta = readClassDelta(source, () => {
+        source.set(
+          key(Math.floor(rand() * Math.max(1, MAP_SIZE))),
+          mixedValue(offset + index, 'fallback')
+        )
+      })
+    }
+    if (!delta) throw new Error(`mixed class delta failed at ${index}`)
+    deltas.push(delta)
+  }
+  return deltas
+}
+
+function time(fn) {
+  const start = process.hrtime.bigint()
+  const ops = fn()
+  const end = process.hrtime.bigint()
+  return { ms: Number(end - start) / 1_000_000, ops }
+}
+
+function runBenchmark(definition) {
+  switch (`${definition.group}:${definition.name}`) {
+    case 'crud:create / hydrate snapshot': {
+      const snapshot = createSnapshot(definition.n)
+      return time(() => {
+        for (let index = 0; index < definition.ops; index++) __create(snapshot)
+        return definition.ops
+      })
+    }
+    case 'crud:read / primitive key hit': {
+      const state = createSeededState(definition.n)
+      return time(() => {
+        for (let index = 0; index < definition.ops; index++)
+          __read(key(0), state)
+        return definition.ops
+      })
+    }
+    case 'crud:read / object key hit': {
+      const state = createSeededState(definition.n)
+      return time(() => {
+        for (let index = 0; index < definition.ops; index++)
+          __read(key(1), state)
+        return definition.ops
+      })
+    }
+    case 'crud:read / missing key': {
+      const state = createSeededState(definition.n)
+      return time(() => {
+        for (let index = 0; index < definition.ops; index++)
+          __read('missing:key', state)
+        return definition.ops
+      })
+    }
+    case 'crud:update / overwrite string': {
+      const state = __create(createSnapshot(definition.n))
+      return time(() => {
+        for (let index = 0; index < definition.ops; index++) {
+          __update('hot:string', stringValue(index, 'bench'), state)
+        }
+        return definition.ops
+      })
+    }
+    case 'crud:update / overwrite object': {
+      const state = __create(createSnapshot(definition.n))
+      return time(() => {
+        for (let index = 0; index < definition.ops; index++) {
+          __update('hot:object', objectValue(index, 'bench'), state)
+        }
+        return definition.ops
+      })
+    }
+    case 'crud:delete / single key': {
+      const snapshot = createSnapshot(definition.n)
+      const states = Array.from({ length: definition.ops }, () =>
+        __create(snapshot)
+      )
+      return time(() => {
+        for (const state of states) __delete(state, key(0))
+        return states.length
+      })
+    }
+    case 'crud:delete / clear all': {
+      const snapshot = createSnapshot(definition.n)
+      const states = Array.from({ length: definition.ops }, () =>
+        __create(snapshot)
+      )
+      return time(() => {
+        for (const state of states) __delete(state)
+        return states.length
+      })
+    }
+    case 'mags:snapshot': {
+      const state = createSeededState(definition.n)
+      return time(() => {
+        for (let index = 0; index < definition.ops; index++) __snapshot(state)
+        return definition.ops
+      })
+    }
+    case 'mags:acknowledge': {
+      const state = createSeededState(definition.n)
+      return time(() => {
+        for (let index = 0; index < definition.ops; index++)
+          __acknowledge(state)
+        return definition.ops
+      })
+    }
+    case 'mags:garbage collect': {
+      const snapshot = createSnapshot(definition.n)
+      const frontiers = Array.from({ length: 3 }, () =>
+        __acknowledge(__create(snapshot))
+      )
+      const states = Array.from({ length: definition.ops }, () =>
+        __create(snapshot)
+      )
+      return time(() => {
+        for (const state of states) __garbageCollect(frontiers, state)
+        return states.length
+      })
+    }
+    case 'mags:merge ordered deltas': {
+      const source = __create(createSnapshot(definition.n))
+      const target = __create(createSnapshot(definition.n))
+      const deltas = collectOrderedCoreDeltas(
+        source,
+        definition.ops,
+        definition.n
+      )
+      return time(() => {
+        for (const delta of deltas) __merge(delta, target)
+        return deltas.length
+      })
+    }
+    case 'mags:merge direct successor': {
+      const baseSnapshot = __snapshot(__create())
+      const source = __create(baseSnapshot)
+      const successor = __update('name', 'alice', source)
+      if (!successor) throw new Error('direct successor delta missing')
+      const states = Array.from({ length: definition.ops }, () =>
+        __create(baseSnapshot)
+      )
+      return time(() => {
+        for (const state of states) __merge(successor.delta, state)
+        return states.length
+      })
+    }
+    case 'mags:merge shuffled gossip': {
+      const source = __create(createSnapshot(definition.n))
+      const target = __create(createSnapshot(definition.n))
+      const deltas = collectMixedCoreDeltas(source, definition.ops, definition.n)
+      const order = shuffledIndices(deltas.length, 0xbeef)
+      return time(() => {
+        for (const index of order) __merge(deltas[index], target)
+        return order.length
+      })
+    }
+    case 'mags:merge stale conflict': {
+      const baseSnapshot = __snapshot(__create())
+      const older = __create(baseSnapshot)
+      const incoming = __update('name', 'older', older)
+      if (!incoming) throw new Error('stale incoming delta missing')
+      const newer = __create(baseSnapshot)
+      __update('name', 'newer', newer)
+      const targetSnapshot = __snapshot(newer)
+      const states = Array.from({ length: definition.ops }, () =>
+        __create(targetSnapshot)
+      )
+      return time(() => {
+        for (const state of states) __merge(incoming.delta, state)
+        return states.length
+      })
+    }
+    case 'class:constructor / hydrate snapshot': {
+      const snapshot = createSnapshot(definition.n)
+      return time(() => {
+        for (let index = 0; index < definition.ops; index++) {
+          new CRMap(snapshot)
+        }
+        return definition.ops
+      })
+    }
+    case 'class:get / primitive key': {
+      const replica = createSeededMap(definition.n)
+      return time(() => {
+        for (let index = 0; index < definition.ops; index++) replica.get(key(0))
+        return definition.ops
+      })
+    }
+    case 'class:get / object key': {
+      const replica = createSeededMap(definition.n)
+      return time(() => {
+        for (let index = 0; index < definition.ops; index++) replica.get(key(1))
+        return definition.ops
+      })
+    }
+    case 'class:has / live key': {
+      const replica = createSeededMap(definition.n)
+      return time(() => {
+        for (let index = 0; index < definition.ops; index++) replica.has(key(0))
+        return definition.ops
+      })
+    }
+    case 'class:keys()': {
+      const replica = createSeededMap(definition.n)
+      return time(() => {
+        for (let index = 0; index < definition.ops; index++) replica.keys()
+        return definition.ops
+      })
+    }
+    case 'class:values()': {
+      const replica = createSeededMap(definition.n)
+      return time(() => {
+        for (let index = 0; index < definition.ops; index++) replica.values()
+        return definition.ops
+      })
+    }
+    case 'class:entries()': {
+      const replica = createSeededMap(definition.n)
+      return time(() => {
+        for (let index = 0; index < definition.ops; index++) replica.entries()
+        return definition.ops
+      })
+    }
+    case 'class:set / string': {
+      const replica = new CRMap(createSnapshot(definition.n))
+      return time(() => {
+        for (let index = 0; index < definition.ops; index++) {
+          replica.set('hot:string', stringValue(index, 'bench'))
+        }
+        return definition.ops
+      })
+    }
+    case 'class:set / object': {
+      const replica = new CRMap(createSnapshot(definition.n))
+      return time(() => {
+        for (let index = 0; index < definition.ops; index++) {
+          replica.set('hot:object', objectValue(index, 'bench'))
+        }
+        return definition.ops
+      })
+    }
+    case 'class:delete(key)': {
+      const snapshot = createSnapshot(definition.n)
+      const replicas = Array.from({ length: definition.ops }, () => new CRMap(snapshot))
+      return time(() => {
+        for (const replica of replicas) replica.delete(key(0))
+        return replicas.length
+      })
+    }
+    case 'class:clear()': {
+      const snapshot = createSnapshot(definition.n)
+      const replicas = Array.from({ length: definition.ops }, () => new CRMap(snapshot))
+      return time(() => {
+        for (const replica of replicas) replica.clear()
+        return replicas.length
+      })
+    }
+    case 'class:snapshot': {
+      const replica = createSeededMap(definition.n)
+      return time(() => {
+        for (let index = 0; index < definition.ops; index++)
+          readClassSnapshot(replica)
+        return definition.ops
+      })
+    }
+    case 'class:acknowledge': {
+      const replica = createSeededMap(definition.n)
+      return time(() => {
+        for (let index = 0; index < definition.ops; index++)
+          readClassAck(replica)
+        return definition.ops
+      })
+    }
+    case 'class:garbage collect': {
+      const snapshot = createSnapshot(definition.n)
+      const frontiers = Array.from({ length: 3 }, () =>
+        readClassAck(new CRMap(snapshot))
+      )
+      const replicas = Array.from({ length: definition.ops }, () => new CRMap(snapshot))
+      return time(() => {
+        for (const replica of replicas) replica.garbageCollect(frontiers)
+        return replicas.length
+      })
+    }
+    case 'class:merge ordered deltas': {
+      const source = new CRMap(createSnapshot(definition.n))
+      const target = new CRMap(createSnapshot(definition.n))
+      const deltas = collectOrderedClassDeltas(
+        source,
+        definition.ops,
+        definition.n
+      )
+      return time(() => {
+        for (const delta of deltas) target.merge(delta)
+        return deltas.length
+      })
+    }
+    case 'class:merge direct successor': {
+      const baseSnapshot = readClassSnapshot(new CRMap())
+      const source = new CRMap(baseSnapshot)
+      const successor = readClassDelta(source, () => {
+        source.set('name', 'alice')
+      })
+      if (!successor) throw new Error('direct successor class delta missing')
+      const replicas = Array.from({ length: definition.ops }, () => new CRMap(baseSnapshot))
+      return time(() => {
+        for (const replica of replicas) replica.merge(successor)
+        return replicas.length
+      })
+    }
+    case 'class:merge shuffled gossip': {
+      const source = new CRMap(createSnapshot(definition.n))
+      const target = new CRMap(createSnapshot(definition.n))
+      const deltas = collectMixedClassDeltas(
+        source,
+        definition.ops,
+        definition.n
+      )
+      const order = shuffledIndices(deltas.length, 0xbeef)
+      return time(() => {
+        for (const index of order) target.merge(deltas[index])
+        return order.length
+      })
+    }
+    default:
+      throw new Error(
+        `unknown benchmark: ${definition.group}:${definition.name}`
+      )
+  }
+}
+
+function formatNumber(number) {
+  return new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(
+    number
+  )
+}
+
+function pad(value, width) {
+  return String(value).padEnd(width, ' ')
+}
+
+function printTable(rows) {
+  const columns = [
+    ['group', (row) => row.group],
+    ['scenario', (row) => row.name],
+    ['n', (row) => formatNumber(row.n)],
+    ['ops', (row) => formatNumber(row.ops)],
+    ['ms', (row) => formatNumber(row.ms)],
+    ['ms/op', (row) => formatNumber(row.msPerOp)],
+    ['ops/sec', (row) => formatNumber(row.opsPerSecond)],
+  ]
+  const widths = columns.map(([header, getter]) =>
+    Math.max(header.length, ...rows.map((row) => getter(row).length))
+  )
+  console.log(
+    columns.map(([header], index) => pad(header, widths[index])).join('  ')
+  )
+  console.log(widths.map((width) => '-'.repeat(width)).join('  '))
+  for (const row of rows) {
+    console.log(
+      columns
+        .map(([, getter], index) => pad(getter(row), widths[index]))
+        .join('  ')
+    )
+  }
+}
+
+const rows = BENCHMARKS.map((definition) => {
+  const result = runBenchmark(definition)
+  return {
+    ...definition,
+    ops: result.ops,
+    ms: result.ms,
+    msPerOp: result.ms / result.ops,
+    opsPerSecond: result.ops / (result.ms / 1_000),
+  }
+})
+
+console.log('CRMap benchmark')
 console.log(
-  `Benchmarking @sovereignbase/observed-remove-set on Node ${process.versions.node}...`
+  `node=${process.version} platform=${process.platform} arch=${process.arch}`
 )
-
-const oneLiveValue = createValue(0, 'single')
-const oneLiveSnapshot = createSnapshot([oneLiveValue])
-const live64 = createValues(64, 'live64')
-const live256 = createValues(256, 'live256')
-const live512 = createValues(512, 'live512')
-const live2048 = createValues(2048, 'live2048')
-const appendBatch256 = createAppendInputs(256, 'append')
-const snapshot64 = createSnapshot(live64)
-const snapshot256 = createSnapshot(live256)
-const snapshot512 = createSnapshot(live512)
-const snapshot2048 = createSnapshot(live2048)
-const mixedLive512 = createValues(512, 'mixed-live')
-const mixedRemoved128 = createValues(128, 'mixed-removed')
-const mixedDuplicates128 = mixedLive512.slice(0, 128).map((value, index) => ({
-  __uuidv7: value.__uuidv7,
-  name: `mixed-duplicate-${index}`,
-  group: index % 16,
-  index,
-}))
-const mixedSnapshot = createSnapshot(
-  [
-    ...mixedLive512,
-    ...mixedRemoved128,
-    ...mixedDuplicates128,
-    { __uuidv7: 'bad', name: 'invalid', group: -1, index: -1 },
-  ],
-  ['bad', ...mixedRemoved128.map((value) => value.__uuidv7)]
-)
-const hasSet = new ORSet(snapshot512)
-const hasLive = hasSet.values()[256]
-const hasMiss = createValue(4096, 'miss')
-const valuesSet = new ORSet(snapshot512)
-const snapshotSet = new ORSet(snapshot512)
-const tombstoneReadSet = new ORSet(snapshot512)
-tombstoneReadSet.clear()
-const duplicateSet = new ORSet()
-const duplicateValue = createValue(0, 'duplicate')
-duplicateSet.append(duplicateValue)
-const removeNoopSet = new ORSet()
-const removeNoopValue = createValue(0, 'remove-noop')
-removeNoopSet.remove(removeNoopValue)
-const clearNoopSet = new ORSet()
-const mergeDuplicateSet = new ORSet(snapshot512)
-const mergeListenerSnapshot = createSnapshot(
-  createValues(256, 'merge-listener')
-)
-const mergeDuplicateSnapshot = createSnapshot(mergeDuplicateSet.values())
-const mergeRemoveSnapshot = createSnapshot(
-  [],
-  live512.map((value) => value.__uuidv7)
-)
-const mergeMixedBaseValues = createValues(512, 'merge-base')
-const mergeMixedBaseSnapshot = createSnapshot(mergeMixedBaseValues)
-const mergeMixedSnapshot = createSnapshot(
-  createValues(512, 'merge-incoming'),
-  mergeMixedBaseValues.slice(0, 256).map((value) => value.__uuidv7)
-)
-const appendWithListenersListener = () => {}
-
-section('Constructor')
-bench('constructor empty', 100000, () => {
-  new ORSet()
-})
-bench('constructor hydrate x64', 5000, () => {
-  new ORSet(snapshot64)
-})
-bench('constructor hydrate x512', 1000, () => {
-  new ORSet(snapshot512)
-})
-bench('constructor hydrate x2048', 250, () => {
-  new ORSet(snapshot2048)
-})
-bench('constructor filter mixed', 750, () => {
-  new ORSet(mixedSnapshot)
-})
-
-section('Read Paths')
-bench('has live', 200000, () => {
-  hasSet.has(hasLive)
-})
-bench('has live string', 200000, () => {
-  hasSet.has(hasLive.__uuidv7)
-})
-bench('has miss', 200000, () => {
-  hasSet.has(hasMiss)
-})
-bench('has miss string', 200000, () => {
-  hasSet.has(hasMiss.__uuidv7)
-})
-bench('values x512', 5000, () => {
-  valuesSet.values()
-})
-bench('tombstones x512', 200000, () => {
-  tombstoneReadSet.tombstones()
-})
-bench('snapshot x512', 5000, () => {
-  readSnapshot(snapshotSet)
-})
-
-section('Write Paths')
-bench('append fresh', 50000, () => {
-  const set = new ORSet()
-  set.append(createAppendInput(0, 'fresh'))
-})
-bench('append valid uuid', 50000, () => {
-  const set = new ORSet()
-  set.append(duplicateValue)
-})
-bench('append duplicate noop', 200000, () => {
-  duplicateSet.append(duplicateValue)
-})
-bench('append tomb regen', 20000, () => {
-  const set = new ORSet()
-  const value = createValue(0, 'tomb')
-  set.append(value)
-  set.remove(value)
-  set.append({
-    __uuidv7: value.__uuidv7,
-    name: 'tomb-regenerated',
-    group: 0,
-    index: 1,
-  })
-})
-bench('append batch x256', 300, () => {
-  const set = new ORSet()
-  for (const value of appendBatch256) set.append(value)
-})
-bench('remove live', 50000, () => {
-  const set = new ORSet(oneLiveSnapshot)
-  set.remove(oneLiveValue)
-})
-bench('remove live string', 50000, () => {
-  const set = new ORSet(oneLiveSnapshot)
-  set.remove(oneLiveValue.__uuidv7)
-})
-bench('remove ghost tomb', 50000, () => {
-  const set = new ORSet()
-  set.remove(hasMiss)
-})
-bench('remove ghost tomb string', 50000, () => {
-  const set = new ORSet()
-  set.remove(hasMiss.__uuidv7)
-})
-bench('remove tomb noop', 200000, () => {
-  removeNoopSet.remove(removeNoopValue)
-})
-bench('remove tomb noop string', 200000, () => {
-  removeNoopSet.remove(removeNoopValue.__uuidv7)
-})
-bench('clear noop', 200000, () => {
-  clearNoopSet.clear()
-})
-bench('clear x512', 2000, () => {
-  const set = new ORSet(snapshot512)
-  set.clear()
-})
-bench('gc delete x512 tombstones', 1500, () => {
-  const set = new ORSet(snapshot512)
-  set.clear()
-  const tombstones = set.tombstones()
-  for (const tombstone of [...tombstones]) tombstones.delete(tombstone)
-})
-
-section('Merge And Replication')
-bench('merge add x64', 5000, () => {
-  const set = new ORSet()
-  set.merge(snapshot64)
-})
-bench('merge add x512', 1250, () => {
-  const set = new ORSet()
-  set.merge(snapshot512)
-})
-bench('merge remove x512', 1250, () => {
-  const set = new ORSet(snapshot512)
-  set.merge(mergeRemoveSnapshot)
-})
-bench('merge mixed x512', 750, () => {
-  const set = new ORSet(mergeMixedBaseSnapshot)
-  set.merge(mergeMixedSnapshot)
-})
-bench('merge duplicate noop', 5000, () => {
-  mergeDuplicateSet.merge(mergeDuplicateSnapshot)
-})
-bench('replica roundtrip x256', 1500, () => {
-  const a = new ORSet(snapshot256)
-  const b = new ORSet()
-  b.merge(readSnapshot(a))
-  a.merge(readSnapshot(b))
-})
-
-section('Event Overhead')
-bench('listener add/remove', 200000, () => {
-  const set = new ORSet()
-  set.addEventListener('delta', appendWithListenersListener)
-  set.removeEventListener('delta', appendWithListenersListener)
-})
-bench('append with listeners', 30000, () => {
-  const set = new ORSet()
-  set.addEventListener('delta', appendWithListenersListener)
-  set.append(createAppendInput(0, 'eventful'))
-})
-bench('merge with listeners x256', 2000, () => {
-  const set = new ORSet()
-  set.addEventListener('merge', appendWithListenersListener)
-  set.merge(mergeListenerSnapshot)
-})
-
-console.log('\nBenchmark complete.')
+console.log('')
+printTable(rows)

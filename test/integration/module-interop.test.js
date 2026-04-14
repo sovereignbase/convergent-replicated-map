@@ -1,44 +1,93 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createRequire } from 'node:module'
-import { ORSet as ORSetEsm } from '../../dist/index.js'
-import { cloneSnapshot, readSnapshot, sortStrings } from '../shared/orset.mjs'
+import * as esmApi from '../../dist/index.js'
 
 const require = createRequire(import.meta.url)
-const { ORSet: ORSetCjs } = require('../../dist/index.cjs')
+const cjsApi = require('../../dist/index.cjs')
 
-function sortedSnapshotIds(set) {
-  return sortStrings(readSnapshot(set).values.map((value) => value.__uuidv7))
+function normalizeSnapshot(snapshot) {
+  return {
+    values: [...snapshot.values]
+      .map((entry) => ({
+        uuidv7: entry.uuidv7,
+        key: entry.value.key,
+        value: structuredClone(entry.value.value),
+        predecessor: entry.predecessor,
+      }))
+      .sort(
+        (left, right) =>
+          left.key.localeCompare(right.key) ||
+          left.uuidv7.localeCompare(right.uuidv7)
+      ),
+    tombstones: [...snapshot.tombstones].sort(),
+  }
 }
 
-test('esm and cjs builds interoperate via snapshots in both directions', () => {
-  const esm = new ORSetEsm()
-  const cjs = new ORSetCjs()
+function projection(replica) {
+  return Object.fromEntries(replica.entries())
+}
 
-  esm.append({ role: 'admin' })
-  cjs.merge(readSnapshot(esm))
-  cjs.append({ role: 'editor' })
-  esm.merge(readSnapshot(cjs))
+test('esm and cjs builds interoperate via snapshots and deltas in both directions', () => {
+  const esm = new esmApi.CRMap()
+  const cjs = new cjsApi.CRMap()
+  const esmDeltas = []
+  const cjsDeltas = []
 
-  assert.equal(esm.size, 2)
-  assert.equal(cjs.size, 2)
-  assert.deepEqual(sortedSnapshotIds(esm), sortedSnapshotIds(cjs))
+  esm.addEventListener('delta', (event) => {
+    esmDeltas.push(structuredClone(event.detail))
+  })
+  cjs.addEventListener('delta', (event) => {
+    cjsDeltas.push(structuredClone(event.detail))
+  })
+
+  esm.set('role', { name: 'admin' })
+  cjs.merge(esmDeltas[0])
+  cjs.set('meta', { enabled: true })
+  esm.merge(cjsDeltas[0])
+  esm.delete('role')
+  cjs.merge(esmDeltas[1])
+  cjs.set('tags', ['x', 'y'])
+  esm.merge(cjs.toJSON())
+
+  assert.equal(esm.size, cjs.size)
+  assert.deepEqual(projection(esm), projection(cjs))
+  assert.deepEqual(
+    normalizeSnapshot(esm.toJSON()),
+    normalizeSnapshot(cjs.toJSON())
+  )
 })
 
-test('public root export exposes ORSet but not ORSetError runtime value', async () => {
+test('public root export exposes CRMap and core helpers but not CRMapError runtime value', async () => {
   const mod = await import('../../dist/index.js')
 
-  assert.equal(typeof mod.ORSet, 'function')
-  assert.equal('ORSetError' in mod, false)
+  assert.equal(typeof mod.CRMap, 'function')
+  for (const name of [
+    '__acknowledge',
+    '__create',
+    '__delete',
+    '__garbageCollect',
+    '__merge',
+    '__read',
+    '__snapshot',
+    '__update',
+  ]) {
+    assert.equal(typeof mod[name], 'function')
+  }
+  assert.equal('CRMapError' in mod, false)
 })
 
 test('json cloned snapshots roundtrip across builds', () => {
-  const esm = new ORSetEsm()
-  esm.append({ role: 'admin' })
+  const esm = new esmApi.CRMap()
+  esm.set('role', { name: 'admin' })
+  esm.set('flags', { active: true })
 
-  const cjs = new ORSetCjs(cloneSnapshot(readSnapshot(esm)))
+  const cjs = new cjsApi.CRMap(structuredClone(esm.toJSON()))
 
-  assert.equal(cjs.size, 1)
-  assert.equal(cjs.values()[0].role, 'admin')
-  assert.equal(typeof cjs.values()[0].__uuidv7, 'string')
+  assert.equal(cjs.size, 2)
+  assert.deepEqual(projection(cjs), projection(esm))
+  assert.deepEqual(
+    normalizeSnapshot(cjs.toJSON()),
+    normalizeSnapshot(esm.toJSON())
+  )
 })
