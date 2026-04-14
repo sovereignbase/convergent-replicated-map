@@ -79,18 +79,18 @@ export type CRMapEventMap<K extends string, V> = {
  * Represents a strongly typed OO-Struct event listener.
  */
 export type CRMapEventListener<
-  T extends Record<string, unknown>,
+  T,
   K extends keyof CRMapEventMap<string, T>,
 > =
-  | ((event: CustomEvent<CRMapEventMap<T>[K]>) => void)
-  | { handleEvent(event: CustomEvent<CRMapEventMap<T>[K]>): void }
+  | ((event: CustomEvent<CRMapEventMap<string, T>[K]>) => void)
+  | { handleEvent(event: CustomEvent<CRMapEventMap<string, T>[K]>): void }
 
 /**
  * Resolves an event name to its corresponding listener type.
  */
 export type CRMapEventListenerFor<
-  T extends Record<string, unknown>,
+  T,
   K extends string,
-> = K extends keyof CRMapEventMap<T>
+> = K extends keyof CRMapEventMap<string, T>
   ? CRMapEventListener<T, K>
   : EventListenerOrEventListenerObject
