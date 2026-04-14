@@ -25,7 +25,7 @@ export function __create<T>(
       for (const snapshotEntry of snapshot.values) {
         if (crMapReplica.tombstones.has(snapshotEntry.uuidv7)) continue
         if (crMapReplica.values.has(snapshotEntry.value.key)) {
-          /**TODO add merge conflict resolution logic */
+          /**TODO add merge conflict resolution logic larger uuid wins*/
           continue
         }
         const stateEntry = transformSnapshotEntryToStateEntry<T>(snapshotEntry)
