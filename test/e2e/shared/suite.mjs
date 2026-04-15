@@ -694,81 +694,87 @@ export async function runCRMapSuite(api, options = {}) {
     }
   )
 
-  await runTest('core guard branches and hydration edge cases stay inert', () => {
-    const tombstone = createValidUuid('tombstone')
-    const olderPredecessor = createValidUuid('older-predecessor')
-    const newerPredecessor = createValidUuid('newer-predecessor')
-    const sameUuid = createValidUuid('same-uuid')
-    const smallerUuid = createValidUuid('smaller-uuid')
-    const largerUuid = createValidUuid('larger-uuid')
-    const replaceOlderUuid = createValidUuid('replace-older-uuid')
-    const replaceNewerUuid = createValidUuid('replace-newer-uuid')
-    const brokenUuid = createValidUuid('broken-uuid')
+  await runTest(
+    'core guard branches and hydration edge cases stay inert',
+    () => {
+      const tombstone = createValidUuid('tombstone')
+      const olderPredecessor = createValidUuid('older-predecessor')
+      const newerPredecessor = createValidUuid('newer-predecessor')
+      const sameUuid = createValidUuid('same-uuid')
+      const smallerUuid = createValidUuid('smaller-uuid')
+      const largerUuid = createValidUuid('larger-uuid')
+      const replaceOlderUuid = createValidUuid('replace-older-uuid')
+      const replaceNewerUuid = createValidUuid('replace-newer-uuid')
+      const brokenUuid = createValidUuid('broken-uuid')
 
-    const withoutValues = __create({
-      tombstones: [tombstone, tombstone, 'bad'],
-    })
-    assertEqual(withoutValues.tombstones.has(tombstone), true)
-    assertEqual(withoutValues.tombstones.size, 1)
-    assertEqual(withoutValues.values.size, 0)
+      const withoutValues = __create({
+        tombstones: [tombstone, tombstone, 'bad'],
+      })
+      assertEqual(withoutValues.tombstones.has(tombstone), true)
+      assertEqual(withoutValues.tombstones.size, 1)
+      assertEqual(withoutValues.values.size, 0)
 
-    const hydrated = __create({
-      tombstones: [tombstone, tombstone, 'bad'],
-      values: [
-        null,
-        {
-          uuidv7: brokenUuid,
-          predecessor: tombstone,
-          value: { key: 'broken', value: () => {} },
-        },
-        {
-          uuidv7: sameUuid,
-          predecessor: newerPredecessor,
-          value: { key: 'same', value: 'winner' },
-        },
-        {
-          uuidv7: sameUuid,
-          predecessor: olderPredecessor,
-          value: { key: 'same', value: 'stale-same-uuid' },
-        },
-        {
-          uuidv7: largerUuid,
-          predecessor: tombstone,
-          value: { key: 'compete', value: 'large' },
-        },
-        {
-          uuidv7: smallerUuid,
-          predecessor: tombstone,
-          value: { key: 'compete', value: 'small' },
-        },
-        {
-          uuidv7: replaceOlderUuid,
-          predecessor: tombstone,
-          value: { key: 'replace', value: 'old' },
-        },
-        {
-          uuidv7: replaceNewerUuid,
-          predecessor: tombstone,
-          value: { key: 'replace', value: 'new' },
-        },
-      ],
-    })
+      const hydrated = __create({
+        tombstones: [tombstone, tombstone, 'bad'],
+        values: [
+          null,
+          {
+            uuidv7: brokenUuid,
+            predecessor: tombstone,
+            value: { key: 'broken', value: () => {} },
+          },
+          {
+            uuidv7: sameUuid,
+            predecessor: newerPredecessor,
+            value: { key: 'same', value: 'winner' },
+          },
+          {
+            uuidv7: sameUuid,
+            predecessor: olderPredecessor,
+            value: { key: 'same', value: 'stale-same-uuid' },
+          },
+          {
+            uuidv7: largerUuid,
+            predecessor: tombstone,
+            value: { key: 'compete', value: 'large' },
+          },
+          {
+            uuidv7: smallerUuid,
+            predecessor: tombstone,
+            value: { key: 'compete', value: 'small' },
+          },
+          {
+            uuidv7: replaceOlderUuid,
+            predecessor: tombstone,
+            value: { key: 'replace', value: 'old' },
+          },
+          {
+            uuidv7: replaceNewerUuid,
+            predecessor: tombstone,
+            value: { key: 'replace', value: 'new' },
+          },
+        ],
+      })
 
-    assertEqual(__read('broken', hydrated), undefined)
-    assertEqual(__read('same', hydrated), 'winner')
-    assertEqual(__read('compete', hydrated), 'large')
-    assertEqual(__read('replace', hydrated), 'new')
-    assertEqual(__update(123, { ok: true }, hydrated), false)
-    assertEqual(__update('broken', () => {}, hydrated), false)
-    assertEqual(__delete('ghost'), false)
+      assertEqual(__read('broken', hydrated), undefined)
+      assertEqual(__read('same', hydrated), 'winner')
+      assertEqual(__read('compete', hydrated), 'large')
+      assertEqual(__read('replace', hydrated), 'new')
+      assertEqual(__update(123, { ok: true }, hydrated), false)
+      assertEqual(
+        __update('broken', () => {}, hydrated),
+        false
+      )
+      assertEqual(__delete('ghost'), false)
 
-    const replica = createReplica()
-    const events = captureEvents(replica)
-    replica.set('broken', () => {})
-    assertEqual(replica.has('broken'), false)
-    assertEqual(events.delta.length, 0)
-    assertEqual(events.change.length, 0)
-  })
+      const replica = createReplica()
+      const events = captureEvents(replica)
+      replica.set('broken', () => {})
+      assertEqual(replica.has('broken'), false)
+      assertEqual(events.delta.length, 0)
+      assertEqual(events.change.length, 0)
+    }
+  )
 
   await runTest(
     'merge ignores malformed ingress and invalid siblings without throwing',
@@ -823,20 +829,20 @@ export async function runCRMapSuite(api, options = {}) {
     }
   )
 
-  await runTest('merge drops stale relation pointers on tombstone ingress', () => {
-    const state = __create()
-    const first = __update('name', { version: 1 }, state)
-    assert(first, 'expected initial update')
-    const staleUuid = first.delta.values[0].uuidv7
+  await runTest(
+    'merge drops stale relation pointers on tombstone ingress',
+    () => {
+      const state = __create()
+      const local = __update('name', { version: 2 }, state)
+      assert(local, 'expected local update')
+      const staleUuid = createValidUuid('stale-relation')
+      state.relations.set(staleUuid, 'name')
 
-    const second = __update('name', { version: 2 }, state)
-    assert(second, 'expected successor update')
-    state.relations.set(staleUuid, 'name')
-
-    assertEqual(__merge({ tombstones: [staleUuid] }, state), false)
-    assertEqual(state.relations.has(staleUuid), false)
-    assertJsonEqual(__read('name', state), { version: 2 })
-  })
+      assertEqual(__merge({ tombstones: [staleUuid] }, state), false)
+      assertEqual(state.relations.has(staleUuid), false)
+      assertJsonEqual(__read('name', state), { version: 2 })
+    }
+  )
 
   await runTest(
     'merge adopts direct successors and same-uuid candidates with greater predecessors',

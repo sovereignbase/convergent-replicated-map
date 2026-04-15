@@ -195,8 +195,7 @@ function createSeededState(size, revisions = SEED_REVISIONS) {
         mixedValue(index + revision * size, `seed-${revision}`),
         state
       )
-      if (!result)
-        throw new Error(`seed update failed at ${revision}:${index}`)
+      if (!result) throw new Error(`seed update failed at ${revision}:${index}`)
     }
   }
   return state
@@ -486,7 +485,11 @@ function runBenchmark(definition) {
     case 'mags:merge shuffled gossip': {
       const source = __create(createSnapshot(definition.n))
       const target = __create(createSnapshot(definition.n))
-      const deltas = collectMixedCoreDeltas(source, definition.ops, definition.n)
+      const deltas = collectMixedCoreDeltas(
+        source,
+        definition.ops,
+        definition.n
+      )
       const order = shuffledIndices(deltas.length, 0xbeef)
       return time(() => {
         for (const index of order) __merge(deltas[index], target)
@@ -580,7 +583,10 @@ function runBenchmark(definition) {
     }
     case 'class:delete(key)': {
       const snapshot = createSnapshot(definition.n)
-      const replicas = Array.from({ length: definition.ops }, () => new CRMap(snapshot))
+      const replicas = Array.from(
+        { length: definition.ops },
+        () => new CRMap(snapshot)
+      )
       return time(() => {
         for (const replica of replicas) replica.delete(key(0))
         return replicas.length
@@ -588,7 +594,10 @@ function runBenchmark(definition) {
     }
     case 'class:clear()': {
       const snapshot = createSnapshot(definition.n)
-      const replicas = Array.from({ length: definition.ops }, () => new CRMap(snapshot))
+      const replicas = Array.from(
+        { length: definition.ops },
+        () => new CRMap(snapshot)
+      )
       return time(() => {
         for (const replica of replicas) replica.clear()
         return replicas.length
@@ -615,7 +624,10 @@ function runBenchmark(definition) {
       const frontiers = Array.from({ length: 3 }, () =>
         readClassAck(new CRMap(snapshot))
       )
-      const replicas = Array.from({ length: definition.ops }, () => new CRMap(snapshot))
+      const replicas = Array.from(
+        { length: definition.ops },
+        () => new CRMap(snapshot)
+      )
       return time(() => {
         for (const replica of replicas) replica.garbageCollect(frontiers)
         return replicas.length
@@ -641,7 +653,10 @@ function runBenchmark(definition) {
         source.set('name', 'alice')
       })
       if (!successor) throw new Error('direct successor class delta missing')
-      const replicas = Array.from({ length: definition.ops }, () => new CRMap(baseSnapshot))
+      const replicas = Array.from(
+        { length: definition.ops },
+        () => new CRMap(baseSnapshot)
+      )
       return time(() => {
         for (const replica of replicas) replica.merge(successor)
         return replicas.length
