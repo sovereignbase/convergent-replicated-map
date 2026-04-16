@@ -81,9 +81,12 @@ export class CRMap<T> {
    *
    * @param key - Key to write.
    * @param value - Next visible value for the key.
+   * @throws {CRMapError} Thrown when the key is not a non-empty string.
+   * @throws {CRMapError} Thrown when the value is not supported by `structuredClone`.
    */
   set(key: string, value: T): void {
     const result = __update<T>(key, value, this.state)
+    /* c8 ignore next -- __update either throws or returns a result object. */
     if (!result) return
     void this.eventTarget.dispatchEvent(
       new CustomEvent('delta', { detail: result.delta })
@@ -97,6 +100,7 @@ export class CRMap<T> {
    * Deletes one visible key.
    *
    * @param key - Key to remove.
+   * @throws {CRMapError} Thrown when the key is not a non-empty string.
    */
   delete(key: string): void {
     const result = __delete(this.state, key)
@@ -247,7 +251,7 @@ export class CRMap<T> {
   }
 
   /**
-   * Returns this map as a JSON string.
+   * Attempts to return this map as a JSON string.
    */
   toString(): string {
     return JSON.stringify(this)

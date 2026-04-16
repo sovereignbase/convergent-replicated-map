@@ -5,7 +5,11 @@
 
 # convergent-replicated-map
 
-Convergent Replicated Map (CR-Map), a delta CRDT for dynamic string-keyed maps.
+Convergent Replicated Map (CR-Map), a delta CRDT for dynamic non-empty string-keyed maps.
+
+Read the specification:
+
+- https://sovereignbase.dev/convergent-replicated-map
 
 ## Compatibility
 
@@ -31,6 +35,10 @@ pnpm add @sovereignbase/convergent-replicated-map
 yarn add @sovereignbase/convergent-replicated-map
 # or
 bun add @sovereignbase/convergent-replicated-map
+# or
+deno add jsr:@sovereignbase/convergent-replicated-map
+# or
+vlt install jsr:@sovereignbase/convergent-replicated-map
 ```
 
 ## Usage
@@ -144,6 +152,11 @@ console.log(map.entries())
 console.log(restored.get('title')) // 'Write docs'
 ```
 
+This example assumes your map values are JSON-compatible. For general
+`structuredClone`-compatible values such as `Date`, `Map`, or `BigInt`, persist
+snapshots with a structured-clone-capable store or an application-level codec
+instead of plain `JSON.stringify` / `JSON.parse`.
+
 `get()`, `for...of`, `values()`, `entries()`, and `forEach()` return detached
 copies of visible values. Mutating those returned values does not mutate the
 underlying replica state.
@@ -224,18 +237,19 @@ The intended split is:
 
 ### Validation and errors
 
-The public package exports the `CRMapErrorCode` type, which currently contains:
+Low-level exports and invalid public keyed mutations can throw `CRMapError`
+with stable error codes:
 
-- `BAD_SNAPSHOT`
+- `INVALID_KEY`
+- `VALUE_NOT_CLONEABLE`
 
-The current runtime surface is intentionally tolerant:
+Ingress stays tolerant:
 
 - malformed top-level merge payloads are ignored
 - malformed snapshot values are dropped during hydration
-- invalid UUIDs and malformed entries are ignored
+- invalid UUIDs, invalid keys, and malformed entries are ignored
 - duplicate identical deltas are idempotent
 - stale same-key contenders can trigger a reply delta instead of mutating live state
-- non-cloneable local writes return `false` from low-level helpers instead of mutating state
 
 ### Safety and copying semantics
 
@@ -243,6 +257,8 @@ The current runtime surface is intentionally tolerant:
 - Deltas are serializable partial snapshot payloads with `values` and `tombstones`.
 - `change` is a minimal key-keyed visible patch where deleted keys map to `undefined`.
 - `toJSON()` returns a detached serializable snapshot.
+- `JSON.stringify()` and `toString()` are only reliable when map values are
+  JSON-compatible.
 - `get()`, `for...of`, `values()`, `entries()`, and `forEach()` expose detached copies of visible values rather than mutable references into replica state.
 - `keys()`, `set()`, `delete()`, `clear()`, `merge()`, `snapshot()`, `acknowledge()`, and `garbageCollect()` all operate on the live map projection.
 

@@ -13,7 +13,7 @@ import {
  * Merges an incoming delta into the current replica.
  *
  * Accepted tombstones remove visible keys immediately. Value contenders for a
- * known key follow the same conflict model as `CRStruct`: same UUIDs can
+ * known key follow the same conflict model as CR-Map local writes: same UUIDs can
  * advance via a larger predecessor, direct descendants win, and otherwise the
  * larger UUIDv7 wins. When local state already dominates an incoming contender,
  * the function emits a reply delta.

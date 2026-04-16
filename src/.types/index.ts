@@ -1,7 +1,9 @@
-/**Replica State*/
+/**
+ * Internal replica state.
+ */
 
 /**
- * Represents the internal replicated state for a single field.
+ * Represents one visible replica entry for a map key.
  */
 export type CRMapStateEntry<K extends string, V> = {
   uuidv7: string
@@ -10,7 +12,7 @@ export type CRMapStateEntry<K extends string, V> = {
 }
 
 /**
- * Represents the internal replicated state of an CR-Map replica.
+ * Represents the internal state of a CR-Map replica.
  */
 export type CRMapState<K extends string, V> = {
   values: Map<K, CRMapStateEntry<K, V>>
@@ -19,10 +21,12 @@ export type CRMapState<K extends string, V> = {
   predecessors: Set<string>
 }
 
-/**Serlialized projection of replica state*/
+/**
+ * Serialized replica state.
+ */
 
 /**
- * Represents the serialized state for a single field.
+ * Represents one serialized visible map entry.
  */
 export type CRMapSnapshotEntry<K, V> = {
   uuidv7: string
@@ -38,32 +42,35 @@ export type CRMapSnapshot<K extends string, V> = {
   tombstones: Array<string>
 }
 
-/**Resolved projection of replica state*/
+/**
+ * Visible replica projections.
+ */
 
 /**
- * Represents visible field values that changed during a local operation or merge.
+ * Represents visible key-value changes from a local operation or merge.
  */
 export type CRMapChange<K extends string, V> = Record<K, V | undefined>
-/**(T)*/
-
-/**Partial changes to gossip*/
 
 /**
- * Represents a partial serialized state projection exchanged between replicas.
+ * Partial serialized state exchanged between replicas.
+ */
+
+/**
+ * Represents a partial serialized replica projection exchanged between replicas.
  */
 export type CRMapDelta<K extends string, V> = Partial<CRMapSnapshot<K, V>>
 
-/**A "report" on what the replica has seen*/
+/**
+ * Acknowledgement frontier.
+ */
 
 /**
  * Represents the current acknowledgement frontier emitted by a replica.
  */
 export type CRMapAck = string
 
-/***/
-
 /**
- * Maps OO-Struct event names to their event payload shapes.
+ * Maps event names to their payload shapes.
  */
 export type CRMapEventMap<K extends string, V> = {
   /** STATE / PROJECTION */
@@ -76,7 +83,7 @@ export type CRMapEventMap<K extends string, V> = {
 }
 
 /**
- * Represents a strongly typed OO-Struct event listener.
+ * Represents a strongly typed CR-Map event listener.
  */
 export type CRMapEventListener<T, K extends keyof CRMapEventMap<string, T>> =
   | ((event: CustomEvent<CRMapEventMap<string, T>[K]>) => void)

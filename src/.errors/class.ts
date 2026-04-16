@@ -1,15 +1,22 @@
-/** Enumerates explicit CR-Map error codes. */
-export type CRMapErrorCode = 'BAD_SNAPSHOT'
+/**
+ * Error codes thrown by {@link CRMap}.
+ */
+export type CRMapErrorCode = 'INVALID_KEY' | 'VALUE_NOT_CLONEABLE'
 
-/** Represents an explicit CR-Map error. */
+/**
+ * Represents a typed CRMap runtime error.
+ */
 export class CRMapError extends Error {
+  /**
+   * The semantic error code for the failure.
+   */
   readonly code: CRMapErrorCode
 
   /**
-   * Creates a new CR-Map error.
+   * Creates a typed CRMap error.
    *
    * @param code - The semantic error code.
-   * @param message - An optional human-readable detail.
+   * @param message - An optional human-readable detail message.
    */
   constructor(code: CRMapErrorCode, message?: string) {
     const detail = message ?? code

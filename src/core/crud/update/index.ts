@@ -4,6 +4,7 @@ import type {
   CRMapDelta,
   CRMapState,
 } from '../../../.types/index.js'
+import { CRMapError } from '../../../.errors/class.js'
 import { v7 as uuidv7 } from 'uuid'
 
 /**
@@ -17,8 +18,10 @@ import { v7 as uuidv7 } from 'uuid'
  * @param key Target key to overwrite.
  * @param value Next visible value for the key.
  * @param crMapReplica Replica to mutate.
- * @returns The local visible change and serialized delta, or `false` when the
- * key is invalid or the value cannot be cloned.
+ * @returns The local visible change and serialized delta.
+ *
+ * @throws {CRMapError} Thrown when the key is not a non-empty string.
+ * @throws {CRMapError} Thrown when the value is not supported by `structuredClone`.
  *
  * Time complexity: O(c), worst case O(c)
  * - c = cloned value payload size
@@ -30,10 +33,15 @@ export function __update<T>(
   value: T,
   crMapReplica: CRMapState<string, T>
 ): { delta: CRMapDelta<string, T>; change: CRMapChange<string, T> } | false {
-  if (typeof key !== 'string') return false
+  if (typeof key !== 'string' || key.length === 0)
+    throw new CRMapError('INVALID_KEY', 'Map keys must be non-empty strings.')
 
   const [cloned, copiedValue] = safeStructuredClone(value)
-  if (!cloned) return false
+  if (!cloned)
+    throw new CRMapError(
+      'VALUE_NOT_CLONEABLE',
+      'Updated values must be supported by structuredClone.'
+    )
 
   const oldEntry = crMapReplica.values.get(key)
   const predecessor = oldEntry ? oldEntry.uuidv7 : uuidv7()

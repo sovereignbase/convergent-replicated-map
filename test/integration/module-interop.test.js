@@ -58,10 +58,11 @@ test('esm and cjs builds interoperate via snapshots and deltas in both direction
   )
 })
 
-test('public root export exposes CRMap and core helpers but not CRMapError runtime value', async () => {
+test('public root export exposes CRMap, CRMapError, and core helpers', async () => {
   const mod = await import('../../dist/index.js')
 
   assert.equal(typeof mod.CRMap, 'function')
+  assert.equal(typeof mod.CRMapError, 'function')
   for (const name of [
     '__acknowledge',
     '__create',
@@ -74,7 +75,6 @@ test('public root export exposes CRMap and core helpers but not CRMapError runti
   ]) {
     assert.equal(typeof mod[name], 'function')
   }
-  assert.equal('CRMapError' in mod, false)
 })
 
 test('json cloned snapshots roundtrip across builds', () => {

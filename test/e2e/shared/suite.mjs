@@ -10,6 +10,7 @@ export async function runCRMapSuite(api, options = {}) {
   const results = { label, ok: true, errors: [], tests: [] }
   const {
     CRMap,
+    CRMapError,
     __acknowledge,
     __create,
     __delete,
@@ -28,6 +29,12 @@ export async function runCRMapSuite(api, options = {}) {
     if (actual !== expected) {
       throw new Error(message || `expected ${actual} to equal ${expected}`)
     }
+  }
+
+  function assertCRMapError(error, code, message) {
+    assert(error instanceof CRMapError, message || 'expected CRMapError')
+    assertEqual(error.name, 'CRMapError')
+    assertEqual(error.code, code)
   }
 
   function assertJsonEqual(actual, expected, message) {
@@ -497,6 +504,7 @@ export async function runCRMapSuite(api, options = {}) {
   await runTest('exports shape', () => {
     for (const value of [
       CRMap,
+      CRMapError,
       __acknowledge,
       __create,
       __delete,
@@ -508,6 +516,12 @@ export async function runCRMapSuite(api, options = {}) {
     ]) {
       assert(typeof value === 'function', 'missing public export')
     }
+
+    const error = new CRMapError('INVALID_KEY')
+    assertEqual(
+      error.message,
+      '{@sovereignbase/convergent-replicated-map} INVALID_KEY'
+    )
   })
 
   await runTest(
@@ -760,21 +774,97 @@ export async function runCRMapSuite(api, options = {}) {
       assertEqual(__read('same', hydrated), 'winner')
       assertEqual(__read('compete', hydrated), 'large')
       assertEqual(__read('replace', hydrated), 'new')
-      assertEqual(__update(123, { ok: true }, hydrated), false)
-      assertEqual(
-        __update('broken', () => {}, hydrated),
-        false
-      )
       assertEqual(__delete('ghost'), false)
-
-      const replica = createReplica()
-      const events = captureEvents(replica)
-      replica.set('broken', () => {})
-      assertEqual(replica.has('broken'), false)
-      assertEqual(events.delta.length, 0)
-      assertEqual(events.change.length, 0)
     }
   )
+
+  await runTest('typed errors remain explicit in local operations', () => {
+    const state = __create()
+
+    try {
+      __update('', { ok: true }, state)
+      throw new Error('expected invalid key error')
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message === 'expected invalid key error'
+      ) {
+        throw error
+      }
+      assertCRMapError(error, 'INVALID_KEY')
+    }
+
+    try {
+      __update('broken', () => {}, state)
+      throw new Error('expected clone error')
+    } catch (error) {
+      if (error instanceof Error && error.message === 'expected clone error') {
+        throw error
+      }
+      assertCRMapError(error, 'VALUE_NOT_CLONEABLE')
+    }
+
+    assertEqual(__delete('ghost'), false)
+
+    try {
+      __delete(state, '')
+      throw new Error('expected delete key error')
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message === 'expected delete key error'
+      ) {
+        throw error
+      }
+      assertCRMapError(error, 'INVALID_KEY')
+    }
+
+    const replica = createReplica()
+    const events = captureEvents(replica)
+
+    try {
+      replica.set('', 'broken')
+      throw new Error('expected set key error')
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message === 'expected set key error'
+      ) {
+        throw error
+      }
+      assertCRMapError(error, 'INVALID_KEY')
+    }
+
+    try {
+      replica.set('broken', () => {})
+      throw new Error('expected set clone error')
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message === 'expected set clone error'
+      ) {
+        throw error
+      }
+      assertCRMapError(error, 'VALUE_NOT_CLONEABLE')
+    }
+
+    try {
+      replica.delete('')
+      throw new Error('expected public delete key error')
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message === 'expected public delete key error'
+      ) {
+        throw error
+      }
+      assertCRMapError(error, 'INVALID_KEY')
+    }
+
+    assertEqual(replica.size, 0)
+    assertEqual(events.delta.length, 0)
+    assertEqual(events.change.length, 0)
+  })
 
   await runTest(
     'merge ignores malformed ingress and invalid siblings without throwing',

@@ -6,7 +6,7 @@
     <title>Convergent Replicated Map (CR-Map)</title>
     <meta
       name="description"
-      content="Specification and reference JavaScript binding for a convergent replicated map delta CRDT with dynamic string keys, UUIDv7 entry identities, reply deltas, tombstone acknowledgements, and garbage collection."
+      content="Specification and reference JavaScript binding for a convergent replicated map delta CRDT with dynamic non-empty string keys, UUIDv7 entry identities, reply deltas, tombstone acknowledgements, and garbage collection."
     />
     <meta
       name="keywords"
@@ -37,7 +37,7 @@
     <meta property="og:title" content="Convergent Replicated Map (CR-Map)" />
     <meta
       property="og:description"
-      content="Specification and reference JavaScript binding for a convergent replicated map delta CRDT with dynamic string keys, UUIDv7 entry identities, reply deltas, tombstone acknowledgements, and garbage collection."
+      content="Specification and reference JavaScript binding for a convergent replicated map delta CRDT with dynamic non-empty string keys, UUIDv7 entry identities, reply deltas, tombstone acknowledgements, and garbage collection."
     />
     <meta
       property="og:url"
@@ -58,7 +58,7 @@
     <meta name="twitter:title" content="Convergent Replicated Map (CR-Map)" />
     <meta
       name="twitter:description"
-      content="Specification and reference JavaScript binding for a convergent replicated map delta CRDT with dynamic string keys, UUIDv7 entry identities, reply deltas, tombstone acknowledgements, and garbage collection."
+      content="Specification and reference JavaScript binding for a convergent replicated map delta CRDT with dynamic non-empty string keys, UUIDv7 entry identities, reply deltas, tombstone acknowledgements, and garbage collection."
     />
     <meta
       name="twitter:image"
@@ -175,7 +175,7 @@
             "name": "@sovereignbase/convergent-replicated-map",
             "alternateName": ["convergent-replicated-map", "cr-map"],
             "url": "https://sovereignbase.dev/convergent-replicated-map/",
-            "description": "Convergent replicated map delta CRDT with dynamic string keys, UUIDv7 entry identities, reply deltas, tombstone acknowledgements, and garbage collection.",
+            "description": "Convergent replicated map delta CRDT with dynamic non-empty string keys, UUIDv7 entry identities, reply deltas, tombstone acknowledgements, and garbage collection.",
             "codeRepository": "https://github.com/sovereignbase/convergent-replicated-map",
             "license": "https://www.apache.org/licenses/LICENSE-2.0",
             "programmingLanguage": ["TypeScript", "JavaScript"],
@@ -221,7 +221,7 @@
             "headline": "Convergent Replicated Map (CR-Map)",
             "name": "Convergent Replicated Map (CR-Map)",
             "url": "https://sovereignbase.dev/convergent-replicated-map/",
-            "description": "Specification and reference JavaScript binding for a convergent replicated map delta CRDT with dynamic string keys, UUIDv7 entry identities, reply deltas, tombstone acknowledgements, and garbage collection.",
+            "description": "Specification and reference JavaScript binding for a convergent replicated map delta CRDT with dynamic non-empty string keys, UUIDv7 entry identities, reply deltas, tombstone acknowledgements, and garbage collection.",
             "inLanguage": "en",
             "isPartOf": {
               "@id": "https://sovereignbase.dev/convergent-replicated-map/#website"
@@ -250,7 +250,7 @@
             "@id": "https://sovereignbase.dev/convergent-replicated-map/#webpage",
             "url": "https://sovereignbase.dev/convergent-replicated-map/",
             "name": "Convergent Replicated Map (CR-Map)",
-            "description": "Specification and reference JavaScript binding for a convergent replicated map delta CRDT with dynamic string keys, UUIDv7 entry identities, reply deltas, tombstone acknowledgements, and garbage collection.",
+            "description": "Specification and reference JavaScript binding for a convergent replicated map delta CRDT with dynamic non-empty string keys, UUIDv7 entry identities, reply deltas, tombstone acknowledgements, and garbage collection.",
             "inLanguage": "en",
             "isPartOf": {
               "@id": "https://sovereignbase.dev/convergent-replicated-map/#website"
@@ -1135,10 +1135,33 @@ typedef DOMString CRMapAck;
           replica state.
         </p>
         <p>
-          <code>JSON.stringify(map)</code> serializes the binding through its
-          current <a>snapshot</a>, and <code>toString()</code> returns that JSON
-          string.
+          When the current <a>snapshot</a> is JSON-compatible,
+          <code>JSON.stringify(map)</code> serializes the binding through that
+          snapshot. <code>for...of</code> iterates detached
+          <code>[key, value]</code> pairs for the current live projection, and
+          <code>toString()</code> attempts to return the JSON string form of the
+          current snapshot.
         </p>
+      </section>
+
+      <section>
+        <h3>Errors</h3>
+        <p>
+          The JavaScript binding throws <code>CRMapError</code> with a string
+          <code>code</code> attribute for local API misuse.
+        </p>
+        <dl>
+          <dt><code>INVALID_KEY</code></dt>
+          <dd>
+            Thrown when a local keyed mutation receives a key that is not a
+            non-empty string.
+          </dd>
+          <dt><code>VALUE_NOT_CLONEABLE</code></dt>
+          <dd>
+            Thrown when a local <a data-link-for="CRMap">set()</a> receives a
+            value that is not supported by <code>structuredClone</code>.
+          </dd>
+        </dl>
       </section>
 
       <section>
@@ -1296,7 +1319,9 @@ typedef DOMString CRMapAck;
           <p>
             Run the core update algorithm for the supplied key and visible
             value, then dispatch the resulting <a>delta event</a> and
-            <a>change event</a> when the write is accepted.
+            <a>change event</a> when the write is accepted. If the key is not a
+            non-empty string or the value is not supported by
+            <code>structuredClone</code>, throw <code>CRMapError</code>.
           </p>
         </section>
 
@@ -1305,7 +1330,8 @@ typedef DOMString CRMapAck;
           <p>
             Delete the single visible key supplied by the caller and dispatch
             the resulting <a>delta event</a> and <a>change event</a> when a live
-            key was removed.
+            key was removed. If the key is not a non-empty string, throw
+            <code>CRMapError</code>.
           </p>
         </section>
 
@@ -1401,7 +1427,10 @@ typedef DOMString CRMapAck;
 
         <section data-dfn-for="CRMap">
           <h5><dfn class="export">toString()</dfn></h5>
-          <p>Return the JSON string form of the current <a>snapshot</a>.</p>
+          <p>
+            Attempt to return the JSON string form of the current
+            <a>snapshot</a>.
+          </p>
         </section>
 
         <section data-dfn-for="CRMap">

@@ -3,6 +3,7 @@ import type {
   CRMapDelta,
   CRMapState,
 } from '../../../.types/index.js'
+import { CRMapError } from '../../../.errors/class.js'
 
 /**
  * Deletes one key or every live key from the replica.
@@ -17,6 +18,8 @@ import type {
  * @param crMapReplica Replica to mutate.
  * @returns A tombstone-only delta plus a visible delete projection, or `false`
  * when no deletion occurred.
+ *
+ * @throws {CRMapError} Thrown when the supplied key is not a non-empty string.
  *
  * Time complexity: O(1) for keyed deletes, O(k) for full deletes
  * Space complexity: O(1) for keyed deletes, O(k) for full deletes
@@ -46,6 +49,9 @@ export function __delete<T>(
   if (!crMapReplica) return false
 
   if (key !== undefined) {
+    if (typeof key !== 'string' || key.length === 0)
+      throw new CRMapError('INVALID_KEY', 'Map keys must be non-empty strings.')
+
     const entry = crMapReplica.values.get(key)
     if (!entry) return false
 
