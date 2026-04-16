@@ -1,4 +1,9 @@
 const TEST_TIMEOUT_MS = 10_000
+const CONTACT_ALICE = '019d81fd-a1e9-76dd-aaf0-f4dd2ac2accc'
+const CONTACT_BOB = '019d81fd-a1ea-75cf-b513-f35976cefc93'
+const CONTACT_CAROL = '019d81fd-a1eb-7b54-8fd9-5a6dc9f43f10'
+const CONTACT_DAVE = '019d81fd-a1ec-73e5-9a9d-0d1129b3cbe2'
+const CONTACT_IDS = [CONTACT_ALICE, CONTACT_BOB, CONTACT_CAROL, CONTACT_DAVE]
 
 export async function runCRMapSuite(api, options = {}) {
   const {
@@ -179,12 +184,12 @@ export async function runCRMapSuite(api, options = {}) {
     }
   }
 
-  function nextValue(key, step, replicaIndex) {
+  function nextValue(contactId, step, replicaIndex) {
     return {
-      key,
-      owner: replicaIndex,
-      step,
-      tags: [`${key}-${replicaIndex}`, `${step}`],
+      memberId: contactId,
+      displayName: `Contact ${replicaIndex}-${step}`,
+      email: `contact-${replicaIndex}-${step}@example.com`,
+      tags: [`group-${replicaIndex}`, `step-${step}`],
       active: (step + replicaIndex) % 2 === 0,
     }
   }
@@ -293,7 +298,7 @@ export async function runCRMapSuite(api, options = {}) {
     } = options
     const rng = random(seed)
     const replicas = Array.from({ length: replicaCount }, () => createReplica())
-    const keys = ['name', 'meta', 'tags', 'prefs']
+    const keys = CONTACT_IDS
 
     for (let step = 0; step < steps; step++) {
       const actorIndex = Math.floor(rng() * replicas.length)
@@ -417,7 +422,7 @@ export async function runCRMapSuite(api, options = {}) {
     const rng = random(seed)
     const replicas = Array.from({ length: replicaCount }, () => createReplica())
     const queue = []
-    const keys = ['name', 'meta', 'tags', 'prefs']
+    const keys = CONTACT_IDS
 
     for (let step = 0; step < steps; step++) {
       const actorIndex = Math.floor(rng() * replicas.length)
@@ -564,57 +569,76 @@ export async function runCRMapSuite(api, options = {}) {
     () => {
       const replica = createReplica()
       const events = captureEvents(replica)
-      replica.set('meta', { enabled: false, nested: { count: 1 } })
-      replica.set('tags', ['x'])
-      replica.set('meta', { enabled: true, nested: { count: 2 } })
+      replica.set(CONTACT_ALICE, {
+        name: 'Alice Example',
+        email: 'alice@example.com',
+        tags: ['friend'],
+        online: false,
+      })
+      replica.set(CONTACT_BOB, {
+        name: 'Bob Example',
+        email: 'bob@example.com',
+        tags: ['coworker'],
+        online: false,
+      })
+      replica.set(CONTACT_ALICE, {
+        name: 'Alice Example',
+        email: 'alice@example.com',
+        tags: ['friend', 'vip'],
+        online: true,
+      })
 
-      const read = replica.get('meta')
-      read.enabled = false
-      read.nested.count = 0
+      const read = replica.get(CONTACT_ALICE)
+      read.online = false
+      read.tags.push('mutated')
 
       const values = replica.values()
-      values[0].enabled = false
-      values[0].nested.count = 0
-      values[1].push('mutated')
+      values[0].online = false
+      values[0].tags.push('mutated')
+      values[1].tags.push('mutated')
 
       const entries = Object.fromEntries(replica.entries())
-      entries.meta.enabled = false
-      entries.meta.nested.count = 0
-      entries.tags.push('entry')
+      entries[CONTACT_ALICE].online = false
+      entries[CONTACT_ALICE].tags.push('entry')
+      entries[CONTACT_BOB].tags.push('entry')
 
       const iterated = Object.fromEntries([...replica])
-      iterated.meta.enabled = false
-      iterated.meta.nested.count = 0
-      iterated.tags.push('iterator')
+      iterated[CONTACT_ALICE].online = false
+      iterated[CONTACT_ALICE].tags.push('iterator')
+      iterated[CONTACT_BOB].tags.push('iterator')
 
       replica.forEach((value, key) => {
-        if (key === 'meta') {
-          value.enabled = false
-          value.nested.count = 0
-        }
-        if (key === 'tags') value.push('forEach')
+        value.online = false
+        value.tags.push(`forEach:${key}`)
       })
 
       const snapshot = emitSnapshot(replica)
-      const metaEntry = snapshot.values.find(
-        (entry) => entry.value.key === 'meta'
+      const aliceEntry = snapshot.values.find(
+        (entry) => entry.value.key === CONTACT_ALICE
       )
-      const tagsEntry = snapshot.values.find(
-        (entry) => entry.value.key === 'tags'
+      const bobEntry = snapshot.values.find(
+        (entry) => entry.value.key === CONTACT_BOB
       )
-      metaEntry.value.value.enabled = false
-      metaEntry.value.value.nested.count = 0
-      tagsEntry.value.value.push('snapshot')
+      aliceEntry.value.value.online = false
+      aliceEntry.value.value.tags.push('snapshot')
+      bobEntry.value.value.tags.push('snapshot')
       snapshot.tombstones.push(createValidUuid('ghost'))
 
-      events.change[0].meta.enabled = true
-      events.change[0].meta.nested.count = 99
+      events.change[0][CONTACT_ALICE].online = true
+      events.change[0][CONTACT_ALICE].tags.push('changed')
 
-      assertJsonEqual(replica.get('meta'), {
-        enabled: true,
-        nested: { count: 2 },
+      assertJsonEqual(replica.get(CONTACT_ALICE), {
+        name: 'Alice Example',
+        email: 'alice@example.com',
+        tags: ['friend', 'vip'],
+        online: true,
       })
-      assertJsonEqual(replica.get('tags'), ['x'])
+      assertJsonEqual(replica.get(CONTACT_BOB), {
+        name: 'Bob Example',
+        email: 'bob@example.com',
+        tags: ['coworker'],
+        online: false,
+      })
       assert(readSnapshot(replica).tombstones.length > 0, 'expected tombstones')
     }
   )
@@ -625,9 +649,9 @@ export async function runCRMapSuite(api, options = {}) {
       const replica = createReplica()
       const events = captureEvents(replica)
 
-      replica.set('name', { text: 'alice' })
-      replica.set('count', { value: 1 })
-      replica.delete('name')
+      replica.set(CONTACT_ALICE, { name: 'Alice Example' })
+      replica.set(CONTACT_BOB, { name: 'Bob Example' })
+      replica.delete(CONTACT_ALICE)
       replica.clear()
       replica.delete('ghost')
       replica.clear()
@@ -635,9 +659,9 @@ export async function runCRMapSuite(api, options = {}) {
       assertEqual(replica.size, 0)
       assertEqual(events.delta.length, 4)
       assertEqual(events.change.length, 4)
-      assertChangeEqual(events.change[2], { name: undefined })
-      assertChangeEqual(events.change[3], { count: undefined })
-      assertEqual(replica.has('name'), false)
+      assertChangeEqual(events.change[2], { [CONTACT_ALICE]: undefined })
+      assertChangeEqual(events.change[3], { [CONTACT_BOB]: undefined })
+      assertEqual(replica.has(CONTACT_ALICE), false)
 
       const state = __create()
       const update = __update('alpha', { ok: true }, state)
@@ -651,14 +675,14 @@ export async function runCRMapSuite(api, options = {}) {
       assertEqual(__read('alpha', state), undefined)
 
       const fullState = __create()
-      assert(__update('a', { value: 1 }, fullState))
-      assert(__update('b', { value: 2 }, fullState))
+      assert(__update(CONTACT_ALICE, { name: 'Alice Example' }, fullState))
+      assert(__update(CONTACT_BOB, { name: 'Bob Example' }, fullState))
       const fullDelete = __delete(fullState)
       assert(fullDelete, 'expected full delete')
       assertEqual(fullState.values.size, 0)
       assertChangeEqual(fullDelete.change, {
-        a: undefined,
-        b: undefined,
+        [CONTACT_ALICE]: undefined,
+        [CONTACT_BOB]: undefined,
       })
       assertEqual(fullDelete.delta.tombstones.length, 2)
     }
@@ -940,33 +964,60 @@ export async function runCRMapSuite(api, options = {}) {
       const source = createReplica()
       const target = createReplica(readSnapshot(source))
       const sourceEvents = captureEvents(source)
-      source.set('name', { text: 'alice' })
+      source.set(CONTACT_ALICE, {
+        name: 'Alice Example',
+        email: 'alice@example.com',
+      })
 
       const targetEvents = captureEvents(target)
       target.merge(sourceEvents.delta[0])
 
-      assertJsonEqual(target.get('name'), { text: 'alice' })
+      assertJsonEqual(target.get(CONTACT_ALICE), {
+        name: 'Alice Example',
+        email: 'alice@example.com',
+      })
       assertEqual(targetEvents.delta.length, 0)
       assertEqual(targetEvents.change.length, 1)
       assertChangeEqual(targetEvents.change[0], {
-        name: { text: 'alice' },
+        [CONTACT_ALICE]: {
+          name: 'Alice Example',
+          email: 'alice@example.com',
+        },
       })
 
       const replica = createReplica()
-      replica.set('meta', { enabled: false })
+      replica.set(CONTACT_BOB, {
+        name: 'Bob Example',
+        email: 'bob@example.com',
+        online: false,
+      })
       const snapshot = structuredClone(readSnapshot(replica))
-      const entry = snapshot.values.find((value) => value.value.key === 'meta')
+      const entry = snapshot.values.find(
+        (value) => value.value.key === CONTACT_BOB
+      )
       entry.predecessor = createValidUuid('greater')
-      entry.value.value = { enabled: true }
+      entry.value.value = {
+        name: 'Bob Example',
+        email: 'bob@example.com',
+        online: true,
+      }
 
       const events = captureEvents(replica)
       replica.merge({ values: [entry] })
 
-      assertJsonEqual(replica.get('meta'), { enabled: true })
+      assertJsonEqual(replica.get(CONTACT_BOB), {
+        name: 'Bob Example',
+        email: 'bob@example.com',
+        online: true,
+      })
       assertEqual(events.delta.length, 0)
       assertEqual(events.change.length, 1)
       assertChangeEqual(events.change[0], {
-        meta: { enabled: true },
+        [CONTACT_BOB]: {
+          name: 'Bob Example',
+          email: 'bob@example.com',
+          online: true,
+        },
       })
     }
   )
@@ -978,13 +1029,13 @@ export async function runCRMapSuite(api, options = {}) {
       const older = createReplica(readSnapshot(base))
       const newer = createReplica(readSnapshot(base))
 
-      older.set('name', { text: 'older' })
-      newer.set('name', { text: 'newer' })
+      older.set(CONTACT_ALICE, { name: 'Alice Older' })
+      newer.set(CONTACT_ALICE, { name: 'Alice Newer' })
 
       const newerEvents = captureEvents(newer)
       newer.merge(readSnapshot(older))
 
-      assertJsonEqual(newer.get('name'), { text: 'newer' })
+      assertJsonEqual(newer.get(CONTACT_ALICE), { name: 'Alice Newer' })
       assertEqual(newerEvents.change.length, 0)
       assertEqual(newerEvents.delta.length, 1)
 
@@ -995,15 +1046,20 @@ export async function runCRMapSuite(api, options = {}) {
       )
 
       const sameUuid = createReplica()
-      sameUuid.set('flag', { on: true })
+      sameUuid.set(CONTACT_BOB, { name: 'Bob Example', online: true })
       const snapshot = structuredClone(readSnapshot(sameUuid))
-      const entry = snapshot.values.find((value) => value.value.key === 'flag')
-      entry.value.value = { on: false }
+      const entry = snapshot.values.find(
+        (value) => value.value.key === CONTACT_BOB
+      )
+      entry.value.value = { name: 'Bob Example', online: false }
 
       const sameUuidEvents = captureEvents(sameUuid)
       sameUuid.merge({ values: [entry] })
 
-      assertJsonEqual(sameUuid.get('flag'), { on: true })
+      assertJsonEqual(sameUuid.get(CONTACT_BOB), {
+        name: 'Bob Example',
+        online: true,
+      })
       assertEqual(sameUuidEvents.change.length, 0)
       assertEqual(sameUuidEvents.delta.length, 1)
     }
@@ -1012,7 +1068,7 @@ export async function runCRMapSuite(api, options = {}) {
   await runTest('duplicate identical delta is idempotent', () => {
     const source = createReplica()
     const sourceEvents = captureEvents(source)
-    source.set('name', { text: 'alice' })
+    source.set(CONTACT_ALICE, { name: 'Alice Example' })
 
     const target = createReplica()
     target.merge(sourceEvents.delta[0])
@@ -1021,16 +1077,16 @@ export async function runCRMapSuite(api, options = {}) {
 
     assertEqual(targetEvents.delta.length, 0)
     assertEqual(targetEvents.change.length, 0)
-    assertJsonEqual(target.get('name'), { text: 'alice' })
+    assertJsonEqual(target.get(CONTACT_ALICE), { name: 'Alice Example' })
   })
 
   await runTest(
     'acknowledge and garbageCollect compact tombstones and ignore invalid frontiers',
     () => {
       const replica = createReplica()
-      replica.set('name', { value: 'a' })
-      replica.set('name', { value: 'b' })
-      replica.set('name', { value: 'c' })
+      replica.set(CONTACT_ALICE, { name: 'Alice Example', revision: 'a' })
+      replica.set(CONTACT_ALICE, { name: 'Alice Example', revision: 'b' })
+      replica.set(CONTACT_ALICE, { name: 'Alice Example', revision: 'c' })
       const before = readSnapshot(replica)
 
       replica.garbageCollect(false)
@@ -1047,7 +1103,9 @@ export async function runCRMapSuite(api, options = {}) {
 
       replica.garbageCollect([ack])
       const after = readSnapshot(replica)
-      const current = after.values.find((entry) => entry.value.key === 'name')
+      const current = after.values.find(
+        (entry) => entry.value.key === CONTACT_ALICE
+      )
 
       assert(
         after.tombstones.includes(current.predecessor),
@@ -1077,11 +1135,11 @@ export async function runCRMapSuite(api, options = {}) {
 
       replica.addEventListener('delta', deltaListener)
       replica.addEventListener('snapshot', snapshotListener)
-      replica.set('name', { text: 'alice' })
+      replica.set(CONTACT_ALICE, { name: 'Alice Example' })
       replica.snapshot()
       replica.removeEventListener('delta', deltaListener)
       replica.removeEventListener('snapshot', snapshotListener)
-      replica.set('name', { text: 'bob' })
+      replica.set(CONTACT_ALICE, { name: 'Alice Updated' })
       replica.snapshot()
 
       assertEqual(deltaDetail.values.length, 1)

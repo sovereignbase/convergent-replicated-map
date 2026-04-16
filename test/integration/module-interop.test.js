@@ -5,6 +5,9 @@ import * as esmApi from '../../dist/index.js'
 
 const require = createRequire(import.meta.url)
 const cjsApi = require('../../dist/index.cjs')
+const CONTACT_ALICE = '019d81fd-a1e9-76dd-aaf0-f4dd2ac2accc'
+const CONTACT_BOB = '019d81fd-a1ea-75cf-b513-f35976cefc93'
+const CONTACT_CAROL = '019d81fd-a1eb-7b54-8fd9-5a6dc9f43f10'
 
 function normalizeSnapshot(snapshot) {
   return {
@@ -41,13 +44,13 @@ test('esm and cjs builds interoperate via snapshots and deltas in both direction
     cjsDeltas.push(structuredClone(event.detail))
   })
 
-  esm.set('role', { name: 'admin' })
+  esm.set(CONTACT_ALICE, { name: 'Alice Example', email: 'alice@example.com' })
   cjs.merge(esmDeltas[0])
-  cjs.set('meta', { enabled: true })
+  cjs.set(CONTACT_BOB, { name: 'Bob Example', email: 'bob@example.com' })
   esm.merge(cjsDeltas[0])
-  esm.delete('role')
+  esm.delete(CONTACT_ALICE)
   cjs.merge(esmDeltas[1])
-  cjs.set('tags', ['x', 'y'])
+  cjs.set(CONTACT_CAROL, { name: 'Carol Example', email: 'carol@example.com' })
   esm.merge(cjs.toJSON())
 
   assert.equal(esm.size, cjs.size)
@@ -79,8 +82,8 @@ test('public root export exposes CRMap, CRMapError, and core helpers', async () 
 
 test('json cloned snapshots roundtrip across builds', () => {
   const esm = new esmApi.CRMap()
-  esm.set('role', { name: 'admin' })
-  esm.set('flags', { active: true })
+  esm.set(CONTACT_ALICE, { name: 'Alice Example', email: 'alice@example.com' })
+  esm.set(CONTACT_BOB, { name: 'Bob Example', email: 'bob@example.com' })
 
   const cjs = new cjsApi.CRMap(structuredClone(esm.toJSON()))
 

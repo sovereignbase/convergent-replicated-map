@@ -1,1 +1,14 @@
-{ "givenName": "Jori", "familyName": "Lehtinen" }
+{
+  "019d81fd-a1e9-76dd-aaf0-f4dd2ac2accc": {
+    "name": "Alice Example",
+    "email": "alice@example.com",
+    "tags": ["friend", "vip"],
+    "online": true
+  },
+  "019d81fd-a1ea-75cf-b513-f35976cefc93": {
+    "name": "Bob Example",
+    "email": "bob@example.com",
+    "tags": ["coworker"],
+    "online": false
+  }
+}

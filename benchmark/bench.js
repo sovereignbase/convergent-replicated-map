@@ -163,7 +163,7 @@ function shuffledIndices(length, seed) {
 }
 
 function key(index) {
-  return `key:${index}`
+  return `contact:${index}`
 }
 
 function stringValue(index, prefix = 'value') {
@@ -172,11 +172,11 @@ function stringValue(index, prefix = 'value') {
 
 function objectValue(index, prefix = 'value') {
   return {
-    id: index,
-    meta: {
-      label: `${prefix}:${index}`,
-      even: index % 2 === 0,
-    },
+    memberId: `contact:${index}`,
+    displayName: `Contact ${index}`,
+    email: `${prefix}-${index}@example.com`,
+    tags: index % 2 === 0 ? ['friend', 'vip'] : ['coworker'],
+    active: index % 2 === 0,
   }
 }
 

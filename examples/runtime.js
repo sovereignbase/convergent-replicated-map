@@ -1,25 +1,47 @@
-const example = {
+const contacts = {
   values: new Map([
     [
-      'givenName',
+      '019d81fd-a1e9-76dd-aaf0-f4dd2ac2accc',
       {
         uuidv7: '019d81fd-a1e9-76dd-aaf0-f4dd2ac2accc',
-        value: { key: 'givenName', value: 'Jori' },
+        value: {
+          key: '019d81fd-a1e9-76dd-aaf0-f4dd2ac2accc',
+          value: {
+            name: 'Alice Example',
+            email: 'alice@example.com',
+            tags: ['friend', 'vip'],
+            online: true,
+          },
+        },
         predecessor: '019d81fd-a1e8-72a8-bfc3-a4b6160544fc',
       },
     ],
     [
-      'familyName',
+      '019d81fd-a1ea-75cf-b513-f35976cefc93',
       {
         uuidv7: '019d81fd-a1ea-75cf-b513-f35976cefc93',
-        value: { key: 'familyName', value: 'Lehtinen' },
+        value: {
+          key: '019d81fd-a1ea-75cf-b513-f35976cefc93',
+          value: {
+            name: 'Bob Example',
+            email: 'bob@example.com',
+            tags: ['coworker'],
+            online: false,
+          },
+        },
         predecessor: '019d81fd-a1e9-76dd-aaf0-f2cdabfac485',
       },
     ],
   ]),
   relations: new Map([
-    ['019d81fd-a1e9-76dd-aaf0-f4dd2ac2accc', 'givenName'],
-    ['019d81fd-a1ea-75cf-b513-f35976cefc93', 'familyName'],
+    [
+      '019d81fd-a1e9-76dd-aaf0-f4dd2ac2accc',
+      '019d81fd-a1e9-76dd-aaf0-f4dd2ac2accc',
+    ],
+    [
+      '019d81fd-a1ea-75cf-b513-f35976cefc93',
+      '019d81fd-a1ea-75cf-b513-f35976cefc93',
+    ],
   ]),
   tombstones: new Set([
     '019d81fd-a1e8-72a8-bfc3-a08e44d1211e',

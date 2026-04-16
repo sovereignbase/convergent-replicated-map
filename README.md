@@ -48,23 +48,38 @@ vlt install jsr:@sovereignbase/convergent-replicated-map
 ```ts
 import { CRMap } from '@sovereignbase/convergent-replicated-map'
 
-type TodoValue = string | number | { done: boolean } | string[]
+type Contact = {
+  name: string
+  email: string
+  tags: string[]
+  online: boolean
+}
 
-const alice = new CRMap<TodoValue>()
-const bob = new CRMap<TodoValue>()
+const CONTACT_ALICE = '019d81fd-a1e9-76dd-aaf0-f4dd2ac2accc'
+const CONTACT_BOB = '019d81fd-a1ea-75cf-b513-f35976cefc93'
 
-alice.addEventListener('delta', (event) => {
-  bob.merge(event.detail)
+const aliceContacts = new CRMap<Contact>()
+const bobContacts = new CRMap<Contact>()
+
+aliceContacts.addEventListener('delta', (event) => {
+  bobContacts.merge(event.detail)
 })
 
-alice.set('title', 'hello world')
-alice.set('count', 1)
-alice.set('meta', { done: true })
-alice.set('tags', ['urgent', 'offline'])
+aliceContacts.set(CONTACT_ALICE, {
+  name: 'Alice Example',
+  email: 'alice@example.com',
+  tags: ['friend', 'vip'],
+  online: true,
+})
+aliceContacts.set(CONTACT_BOB, {
+  name: 'Bob Example',
+  email: 'bob@example.com',
+  tags: ['coworker'],
+  online: false,
+})
 
-console.log(bob.get('title')) // 'hello world'
-console.log(bob.get('meta')) // { done: true }
-console.log(bob.entries())
+console.log(bobContacts.get(CONTACT_ALICE)?.email) // 'alice@example.com'
+console.log(bobContacts.entries())
 ```
 
 ### Hydrating from a snapshot
@@ -75,8 +90,17 @@ import {
   type CRMapSnapshot,
 } from '@sovereignbase/convergent-replicated-map'
 
-const source = new CRMap<string>()
-let snapshot!: CRMapSnapshot<string, string>
+type Contact = {
+  name: string
+  email: string
+  tags: string[]
+  online: boolean
+}
+
+const CONTACT_ALICE = '019d81fd-a1e9-76dd-aaf0-f4dd2ac2accc'
+
+const source = new CRMap<Contact>()
+let snapshot!: CRMapSnapshot<string, Contact>
 
 source.addEventListener(
   'snapshot',
@@ -86,13 +110,17 @@ source.addEventListener(
   { once: true }
 )
 
-source.set('title', 'draft')
-source.set('status', 'ready')
+source.set(CONTACT_ALICE, {
+  name: 'Alice Example',
+  email: 'alice@example.com',
+  tags: ['friend'],
+  online: true,
+})
 source.snapshot()
 
-const restored = new CRMap<string>(snapshot)
+const restored = new CRMap<Contact>(snapshot)
 
-console.log(restored.entries()) // [['title', 'draft'], ['status', 'ready']]
+console.log(restored.get(CONTACT_ALICE)?.name) // 'Alice Example'
 ```
 
 ### Event channels
@@ -100,29 +128,42 @@ console.log(restored.entries()) // [['title', 'draft'], ['status', 'ready']]
 ```ts
 import { CRMap } from '@sovereignbase/convergent-replicated-map'
 
-const map = new CRMap<string | number>()
+type Contact = {
+  name: string
+  email: string
+  tags: string[]
+  online: boolean
+}
 
-map.addEventListener('delta', (event) => {
+const CONTACT_ALICE = '019d81fd-a1e9-76dd-aaf0-f4dd2ac2accc'
+
+const contacts = new CRMap<Contact>()
+
+contacts.addEventListener('delta', (event) => {
   console.log('delta', event.detail)
 })
 
-map.addEventListener('change', (event) => {
+contacts.addEventListener('change', (event) => {
   console.log('change', event.detail)
 })
 
-map.addEventListener('snapshot', (event) => {
+contacts.addEventListener('snapshot', (event) => {
   console.log('snapshot', event.detail)
 })
 
-map.addEventListener('ack', (event) => {
+contacts.addEventListener('ack', (event) => {
   console.log('ack', event.detail)
 })
 
-map.set('name', 'alice')
-map.set('count', 1)
-map.delete('name')
-map.snapshot()
-map.acknowledge()
+contacts.set(CONTACT_ALICE, {
+  name: 'Alice Example',
+  email: 'alice@example.com',
+  tags: ['friend'],
+  online: true,
+})
+contacts.delete(CONTACT_ALICE)
+contacts.snapshot()
+contacts.acknowledge()
 ```
 
 ### Iteration and JSON serialization
@@ -130,26 +171,46 @@ map.acknowledge()
 ```ts
 import { CRMap } from '@sovereignbase/convergent-replicated-map'
 
-const map = new CRMap<string | { done: boolean }>()
-
-map.set('title', 'Write docs')
-map.set('meta', { done: false })
-
-const serialized = JSON.stringify(map)
-const restored = new CRMap<string | { done: boolean }>(JSON.parse(serialized))
-
-for (const [key, value] of map) {
-  console.log(key, value)
+type Contact = {
+  name: string
+  email: string
+  tags: string[]
+  online: boolean
 }
 
-map.forEach((value, key, target) => {
-  console.log(key, value, target.size)
+const CONTACT_ALICE = '019d81fd-a1e9-76dd-aaf0-f4dd2ac2accc'
+const CONTACT_BOB = '019d81fd-a1ea-75cf-b513-f35976cefc93'
+
+const contacts = new CRMap<Contact>()
+
+contacts.set(CONTACT_ALICE, {
+  name: 'Alice Example',
+  email: 'alice@example.com',
+  tags: ['friend'],
+  online: true,
+})
+contacts.set(CONTACT_BOB, {
+  name: 'Bob Example',
+  email: 'bob@example.com',
+  tags: ['coworker'],
+  online: false,
 })
 
-console.log(map.keys())
-console.log(map.values())
-console.log(map.entries())
-console.log(restored.get('title')) // 'Write docs'
+const serialized = JSON.stringify(contacts)
+const restored = new CRMap<Contact>(JSON.parse(serialized))
+
+for (const [contactId, contact] of contacts) {
+  console.log(contactId, contact)
+}
+
+contacts.forEach((contact, contactId, target) => {
+  console.log(contactId, contact, target.size)
+})
+
+console.log(contacts.keys())
+console.log(contacts.values())
+console.log(contacts.entries())
+console.log(restored.get(CONTACT_ALICE)?.name) // 'Alice Example'
 ```
 
 This example assumes your map values are JSON-compatible. For general
@@ -166,39 +227,62 @@ underlying replica state.
 ```ts
 import { CRMap, type CRMapAck } from '@sovereignbase/convergent-replicated-map'
 
-const alice = new CRMap<string>()
-const bob = new CRMap<string>()
+type Contact = {
+  name: string
+  email: string
+  tags: string[]
+  online: boolean
+}
+
+const CONTACT_ALICE = '019d81fd-a1e9-76dd-aaf0-f4dd2ac2accc'
+
+const aliceContacts = new CRMap<Contact>()
+const bobContacts = new CRMap<Contact>()
 const frontiers = new Map<string, CRMapAck>()
 
-alice.addEventListener('delta', (event) => bob.merge(event.detail))
-bob.addEventListener('delta', (event) => alice.merge(event.detail))
+aliceContacts.addEventListener('delta', (event) =>
+  bobContacts.merge(event.detail)
+)
+bobContacts.addEventListener('delta', (event) =>
+  aliceContacts.merge(event.detail)
+)
 
-alice.addEventListener('ack', (event) => {
+aliceContacts.addEventListener('ack', (event) => {
   frontiers.set('alice', event.detail)
 })
 
-bob.addEventListener('ack', (event) => {
+bobContacts.addEventListener('ack', (event) => {
   frontiers.set('bob', event.detail)
 })
 
-alice.set('title', 'x')
-alice.set('title', 'y')
-alice.delete('title')
+aliceContacts.set(CONTACT_ALICE, {
+  name: 'Alice Example',
+  email: 'alice@example.com',
+  tags: ['friend'],
+  online: false,
+})
+aliceContacts.set(CONTACT_ALICE, {
+  name: 'Alice Example',
+  email: 'alice@example.com',
+  tags: ['friend', 'vip'],
+  online: true,
+})
+aliceContacts.delete(CONTACT_ALICE)
 
-alice.acknowledge()
-bob.acknowledge()
+aliceContacts.acknowledge()
+bobContacts.acknowledge()
 
-alice.garbageCollect([...frontiers.values()])
-bob.garbageCollect([...frontiers.values()])
+aliceContacts.garbageCollect([...frontiers.values()])
+bobContacts.garbageCollect([...frontiers.values()])
 ```
 
 ### Advanced exports
 
-If you need to build your own string-keyed CRDT binding instead of using the
+If you need to build your own member-indexed CRDT binding instead of using the
 high-level `CRMap` class, the package also exports the core CRUD and MAGS
 functions together with the replica and payload types.
 
-Those low-level exports let you build custom map abstractions, protocol
+Those low-level exports let you build custom membership abstractions, protocol
 wrappers, or framework-specific bindings while preserving the same convergence
 rules as the default `CRMap` binding.
 
@@ -212,17 +296,35 @@ import {
   type CRMapSnapshot,
 } from '@sovereignbase/convergent-replicated-map'
 
-const replica = __create<string>()
-const local = __update('title', 'draft', replica)
+type Contact = {
+  name: string
+  email: string
+  tags: string[]
+  online: boolean
+}
+
+const CONTACT_ALICE = '019d81fd-a1e9-76dd-aaf0-f4dd2ac2accc'
+
+const replica = __create<Contact>()
+const local = __update(
+  CONTACT_ALICE,
+  {
+    name: 'Alice Example',
+    email: 'alice@example.com',
+    tags: ['friend'],
+    online: true,
+  },
+  replica
+)
 
 if (local) {
-  const outgoing: CRMapDelta<string, string> = local.delta
+  const outgoing: CRMapDelta<string, Contact> = local.delta
   const remoteChange = __merge(outgoing, replica)
 
   console.log(remoteChange)
 }
 
-const snapshot: CRMapSnapshot<string, string> = __snapshot(replica)
+const snapshot: CRMapSnapshot<string, Contact> = __snapshot(replica)
 console.log(snapshot)
 ```
 
@@ -255,16 +357,16 @@ Ingress stays tolerant:
 
 - Snapshots are serializable full-state payloads with `values` and `tombstones`.
 - Deltas are serializable partial snapshot payloads with `values` and `tombstones`.
-- `change` is a minimal key-keyed visible patch where deleted keys map to `undefined`.
+- `change` is a minimal member-identifier-keyed visible patch where deleted keys map to `undefined`.
 - `toJSON()` returns a detached serializable snapshot.
 - `JSON.stringify()` and `toString()` are only reliable when map values are
   JSON-compatible.
 - `get()`, `for...of`, `values()`, `entries()`, and `forEach()` expose detached copies of visible values rather than mutable references into replica state.
-- `keys()`, `set()`, `delete()`, `clear()`, `merge()`, `snapshot()`, `acknowledge()`, and `garbageCollect()` all operate on the live map projection.
+- `keys()`, `set()`, `delete()`, `clear()`, `merge()`, `snapshot()`, `acknowledge()`, and `garbageCollect()` all operate on the live membership projection.
 
 ### Convergence and compaction
 
-- The convergence target is the visible key-value projection, not identical internal tombstone sets.
+- The convergence target is the visible membership projection, not identical internal tombstone sets.
 - Same-key conflict resolution follows this order:
   - a direct descendant wins
   - the same UUID can advance via a larger predecessor

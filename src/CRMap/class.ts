@@ -14,7 +14,7 @@ import {
 } from '../core/mags/index.js'
 
 /**
- * A convergent replicated map keyed by strings.
+ * A convergent replicated map for membership views keyed by string identifiers.
  *
  * Reads, iteration, and collection views expose detached copies of the current
  * live projection. Local mutations emit `delta` and `change` events. Merges may
@@ -148,7 +148,7 @@ export class CRMap<T> {
   }
 
   /**
-   * Returns detached key-value pairs for the current live projection.
+   * Returns detached member entries for the current live projection.
    *
    * @returns The current entries in map iteration order.
    */
@@ -286,7 +286,7 @@ export class CRMap<T> {
    * Callback values are detached copies, so mutating them does not mutate the
    * replica.
    *
-   * @param callback - Function to call for each key-value pair.
+   * @param callback - Function to call for each member entry.
    * @param thisArg - Optional `this` value for the callback.
    */
   forEach(
