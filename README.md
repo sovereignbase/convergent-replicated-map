@@ -298,7 +298,6 @@ The benchmark runner currently uses:
 
 - `MAP_SIZE = 5_000`
 - `OPS = 250`
-- `SEED_REVISIONS = 2`
 - output columns: `group`, `scenario`, `n`, `ops`, `ms`, `ms/op`, `ops/sec`
 
 Last measured on Node `v22.14.0` (`win32 x64`):

@@ -1,40 +1,34 @@
 const example = {
-  size: 3,
-  cursor: validated.values[1],
   values: new Map([
     [
-      '019d71d7-cbe5-7495-aee8-9694273d2306',
+      'givenName',
       {
-        uuidv7: '019d71d7-cbe5-7495-aee8-9694273d2306',
-        value: 'What is',
-        predecessor: '\0',
-        index: 0,
-        prev: undefined,
-        next: validated.values[0],
+        uuidv7: '019d81fd-a1e9-76dd-aaf0-f4dd2ac2accc',
+        value: { key: 'givenName', value: 'Jori' },
+        predecessor: '019d81fd-a1e8-72a8-bfc3-a4b6160544fc',
       },
     ],
     [
-      '019d71d7-cbe5-7495-aee8-8e2721f7cd22',
+      'familyName',
       {
-        uuidv7: '019d71d7-cbe5-7495-aee8-8e2721f7cd22',
-        value: 'up',
-        predecessor: '019d71d7-cbe4-746c-a5ac-8c2743c46e64',
-        index: 1,
-        prev: validated.values[2],
-        next: validated.values[1],
-      },
-    ],
-    [
-      '019d71d7-cbe5-7495-aee8-92abf1b562ac',
-      {
-        uuidv7: '019d71d7-cbe5-7495-aee8-92abf1b562ac',
-        value: 'dude!',
-        predecessor: '019d71d7-cbe5-7495-aee8-8e2721f7cd22',
-        index: 2,
-        prev: validated.values[0],
-        next: undefined,
+        uuidv7: '019d81fd-a1ea-75cf-b513-f35976cefc93',
+        value: { key: 'familyName', value: 'Lehtinen' },
+        predecessor: '019d81fd-a1e9-76dd-aaf0-f2cdabfac485',
       },
     ],
   ]),
-  tombstones: new Set(['019d71d7-cbe4-746c-a5ac-8c2743c46e64']),
+  relations: new Map([
+    ['019d81fd-a1e9-76dd-aaf0-f4dd2ac2accc', 'givenName'],
+    ['019d81fd-a1ea-75cf-b513-f35976cefc93', 'familyName'],
+  ]),
+  tombstones: new Set([
+    '019d81fd-a1e8-72a8-bfc3-a08e44d1211e',
+    '019d81fd-a1e8-72a8-bfc3-a4b6160544fc',
+    '019d81fd-a1e8-72a8-bfc3-a8082418f62a',
+    '019d81fd-a1e9-76dd-aaf0-f2cdabfac485',
+  ]),
+  predecessors: new Set([
+    '019d81fd-a1e8-72a8-bfc3-a4b6160544fc',
+    '019d81fd-a1e9-76dd-aaf0-f2cdabfac485',
+  ]),
 }

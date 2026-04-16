@@ -4,9 +4,9 @@
 export { CRMap } from './CRMap/class.js'
 
 /**
- * The public CR-Struct error code union.
+ * The public CR-Struct error class and code union.
  */
-export type { CRMapErrorCode } from './.errors/class.js'
+export { CRMapError, type CRMapErrorCode } from './.errors/class.js'
 
 /**
  * Public CR-Struct types.

@@ -6,21 +6,21 @@
     <title>Convergent Replicated Map (CR-Map)</title>
     <meta
       name="description"
-      content="Specification and reference JavaScript binding for a convergent replicated Map delta CRDT with fixed keys, UUIDv7 field identities, per-field tombstone acknowledgements, and garbage collection."
+      content="Specification and reference JavaScript binding for a convergent replicated map delta CRDT with dynamic string keys, UUIDv7 entry identities, reply deltas, tombstone acknowledgements, and garbage collection."
     />
     <meta
       name="keywords"
-      content="cr-Map, convergent replicated Map, crdt, uuidv7, delta, snapshot, acknowledgement, garbage collection, javascript, typescript"
+      content="cr-map, convergent replicated map, crdt, uuidv7, delta, snapshot, acknowledgement, garbage collection, javascript, typescript"
     />
     <meta name="author" content="Jori Lehtinen" />
     <meta
       name="robots"
       content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
     />
-    <meta name="application-name" content="convergent-replicated-Map" />
+    <meta name="application-name" content="convergent-replicated-map" />
     <link
       rel="canonical"
-      href="https://sovereignbase.dev/convergent-replicated-Map/"
+      href="https://sovereignbase.dev/convergent-replicated-map/"
     />
     <link
       rel="icon"
@@ -37,11 +37,11 @@
     <meta property="og:title" content="Convergent Replicated Map (CR-Map)" />
     <meta
       property="og:description"
-      content="Specification and reference JavaScript binding for a convergent replicated Map delta CRDT with fixed keys, UUIDv7 field identities, per-field tombstone acknowledgements, and garbage collection."
+      content="Specification and reference JavaScript binding for a convergent replicated map delta CRDT with dynamic string keys, UUIDv7 entry identities, reply deltas, tombstone acknowledgements, and garbage collection."
     />
     <meta
       property="og:url"
-      content="https://sovereignbase.dev/convergent-replicated-Map/"
+      content="https://sovereignbase.dev/convergent-replicated-map/"
     />
     <meta
       property="og:image"
@@ -58,7 +58,7 @@
     <meta name="twitter:title" content="Convergent Replicated Map (CR-Map)" />
     <meta
       name="twitter:description"
-      content="Specification and reference JavaScript binding for a convergent replicated Map delta CRDT with fixed keys, UUIDv7 field identities, per-field tombstone acknowledgements, and garbage collection."
+      content="Specification and reference JavaScript binding for a convergent replicated map delta CRDT with dynamic string keys, UUIDv7 entry identities, reply deltas, tombstone acknowledgements, and garbage collection."
     />
     <meta
       name="twitter:image"
@@ -77,8 +77,8 @@
     <script class="remove">
       var respecConfig = {
         specStatus: 'unofficial',
-        shortName: 'convergent-replicated-Map',
-        github: 'sovereignbase/convergent-replicated-Map',
+        shortName: 'convergent-replicated-map',
+        github: 'sovereignbase/convergent-replicated-map',
         latestVersion: null,
         edDraftURI: null,
         editors: [
@@ -114,8 +114,8 @@
             date: '2026-03',
           },
           HTML: {
-            title: '2.7 Safe passing of Mapured data',
-            href: 'https://html.spec.whatwg.org/multipage/Mapured-data.html',
+            title: '2.7 Safe passing of structured data',
+            href: 'https://html.spec.whatwg.org/multipage/structured-data.html',
             publisher: 'WHATWG',
             date: '2026-04',
           },
@@ -128,7 +128,7 @@
         "@graph": [
           {
             "@type": "Organization",
-            "@id": "https://sovereignbase.dev/convergent-replicated-Map/#organization",
+            "@id": "https://sovereignbase.dev/convergent-replicated-map/#organization",
             "name": "Sovereignbase",
             "url": "https://github.com/sovereignbase",
             "alternateName": ["@sovereignbase"],
@@ -146,7 +146,7 @@
           },
           {
             "@type": "Person",
-            "@id": "https://sovereignbase.dev/convergent-replicated-Map/#author",
+            "@id": "https://sovereignbase.dev/convergent-replicated-map/#author",
             "name": "Jori Lehtinen",
             "url": "https://github.com/jortsupetterson",
             "alternateName": ["jortsupetterson", "@jortsupetterson"],
@@ -161,22 +161,22 @@
           },
           {
             "@type": "WebSite",
-            "@id": "https://sovereignbase.dev/convergent-replicated-Map/#website",
-            "url": "https://sovereignbase.dev/convergent-replicated-Map/",
-            "name": "convergent-replicated-Map",
+            "@id": "https://sovereignbase.dev/convergent-replicated-map/#website",
+            "url": "https://sovereignbase.dev/convergent-replicated-map/",
+            "name": "convergent-replicated-map",
             "inLanguage": "en",
             "publisher": {
-              "@id": "https://sovereignbase.dev/convergent-replicated-Map/#organization"
+              "@id": "https://sovereignbase.dev/convergent-replicated-map/#organization"
             }
           },
           {
             "@type": "SoftwareSourceCode",
-            "@id": "https://sovereignbase.dev/convergent-replicated-Map/#software",
-            "name": "@sovereignbase/convergent-replicated-Map",
-            "alternateName": ["convergent-replicated-Map", "cr-Map"],
-            "url": "https://sovereignbase.dev/convergent-replicated-Map/",
-            "description": "Convergent replicated Map delta CRDT with fixed keys, UUIDv7 field identities, per-field tombstone acknowledgements, and garbage collection.",
-            "codeRepository": "https://github.com/sovereignbase/convergent-replicated-Map",
+            "@id": "https://sovereignbase.dev/convergent-replicated-map/#software",
+            "name": "@sovereignbase/convergent-replicated-map",
+            "alternateName": ["convergent-replicated-map", "cr-map"],
+            "url": "https://sovereignbase.dev/convergent-replicated-map/",
+            "description": "Convergent replicated map delta CRDT with dynamic string keys, UUIDv7 entry identities, reply deltas, tombstone acknowledgements, and garbage collection.",
+            "codeRepository": "https://github.com/sovereignbase/convergent-replicated-map",
             "license": "https://www.apache.org/licenses/LICENSE-2.0",
             "programmingLanguage": ["TypeScript", "JavaScript"],
             "runtimePlatform": [
@@ -193,50 +193,50 @@
               "replicated",
               "delta",
               "crdt",
-              "convergent-replicated-Map",
-              "cr-Map",
-              "core",
-              "crud",
-              "mags"
+              "convergent-replicated-map",
+              "cr-map",
+              "map",
+              "gossip",
+              "local-first"
             ],
             "image": "https://sovereignbase.dev/sovereignbase_social_sharing_image.png",
             "isAccessibleForFree": true,
             "author": {
-              "@id": "https://sovereignbase.dev/convergent-replicated-Map/#author"
+              "@id": "https://sovereignbase.dev/convergent-replicated-map/#author"
             },
             "maintainer": {
-              "@id": "https://sovereignbase.dev/convergent-replicated-Map/#organization"
+              "@id": "https://sovereignbase.dev/convergent-replicated-map/#organization"
             },
             "publisher": {
-              "@id": "https://sovereignbase.dev/convergent-replicated-Map/#organization"
+              "@id": "https://sovereignbase.dev/convergent-replicated-map/#organization"
             },
             "sameAs": [
-              "https://jsr.io/@sovereignbase/convergent-replicated-Map/",
-              "https://www.npmjs.com/package/@sovereignbase/convergent-replicated-Map"
+              "https://jsr.io/@sovereignbase/convergent-replicated-map/",
+              "https://www.npmjs.com/package/@sovereignbase/convergent-replicated-map"
             ]
           },
           {
             "@type": "TechArticle",
-            "@id": "https://sovereignbase.dev/convergent-replicated-Map/#specification",
+            "@id": "https://sovereignbase.dev/convergent-replicated-map/#specification",
             "headline": "Convergent Replicated Map (CR-Map)",
             "name": "Convergent Replicated Map (CR-Map)",
-            "url": "https://sovereignbase.dev/convergent-replicated-Map/",
-            "description": "Specification and reference JavaScript binding for a convergent replicated Map delta CRDT with fixed keys, UUIDv7 field identities, per-field tombstone acknowledgements, and garbage collection.",
+            "url": "https://sovereignbase.dev/convergent-replicated-map/",
+            "description": "Specification and reference JavaScript binding for a convergent replicated map delta CRDT with dynamic string keys, UUIDv7 entry identities, reply deltas, tombstone acknowledgements, and garbage collection.",
             "inLanguage": "en",
             "isPartOf": {
-              "@id": "https://sovereignbase.dev/convergent-replicated-Map/#website"
+              "@id": "https://sovereignbase.dev/convergent-replicated-map/#website"
             },
             "mainEntityOfPage": {
-              "@id": "https://sovereignbase.dev/convergent-replicated-Map/#webpage"
+              "@id": "https://sovereignbase.dev/convergent-replicated-map/#webpage"
             },
             "about": {
-              "@id": "https://sovereignbase.dev/convergent-replicated-Map/#software"
+              "@id": "https://sovereignbase.dev/convergent-replicated-map/#software"
             },
             "author": {
-              "@id": "https://sovereignbase.dev/convergent-replicated-Map/#author"
+              "@id": "https://sovereignbase.dev/convergent-replicated-map/#author"
             },
             "publisher": {
-              "@id": "https://sovereignbase.dev/convergent-replicated-Map/#organization"
+              "@id": "https://sovereignbase.dev/convergent-replicated-map/#organization"
             },
             "image": {
               "@type": "ImageObject",
@@ -247,22 +247,22 @@
           },
           {
             "@type": "WebPage",
-            "@id": "https://sovereignbase.dev/convergent-replicated-Map/#webpage",
-            "url": "https://sovereignbase.dev/convergent-replicated-Map/",
+            "@id": "https://sovereignbase.dev/convergent-replicated-map/#webpage",
+            "url": "https://sovereignbase.dev/convergent-replicated-map/",
             "name": "Convergent Replicated Map (CR-Map)",
-            "description": "Specification and reference JavaScript binding for a convergent replicated Map delta CRDT with fixed keys, UUIDv7 field identities, per-field tombstone acknowledgements, and garbage collection.",
+            "description": "Specification and reference JavaScript binding for a convergent replicated map delta CRDT with dynamic string keys, UUIDv7 entry identities, reply deltas, tombstone acknowledgements, and garbage collection.",
             "inLanguage": "en",
             "isPartOf": {
-              "@id": "https://sovereignbase.dev/convergent-replicated-Map/#website"
+              "@id": "https://sovereignbase.dev/convergent-replicated-map/#website"
             },
             "about": {
-              "@id": "https://sovereignbase.dev/convergent-replicated-Map/#software"
+              "@id": "https://sovereignbase.dev/convergent-replicated-map/#software"
             },
             "author": {
-              "@id": "https://sovereignbase.dev/convergent-replicated-Map/#author"
+              "@id": "https://sovereignbase.dev/convergent-replicated-map/#author"
             },
             "publisher": {
-              "@id": "https://sovereignbase.dev/convergent-replicated-Map/#organization"
+              "@id": "https://sovereignbase.dev/convergent-replicated-map/#organization"
             },
             "primaryImageOfPage": {
               "@type": "ImageObject",
@@ -274,9 +274,9 @@
               "https://github.com/sovereignbase",
               "https://jsr.io/@sovereignbase",
               "https://www.npmjs.com/org/sovereignbase",
-              "https://github.com/sovereignbase/convergent-replicated-Map",
-              "https://jsr.io/@sovereignbase/convergent-replicated-Map/",
-              "https://www.npmjs.com/package/@sovereignbase/convergent-replicated-Map",
+              "https://github.com/sovereignbase/convergent-replicated-map",
+              "https://jsr.io/@sovereignbase/convergent-replicated-map/",
+              "https://www.npmjs.com/package/@sovereignbase/convergent-replicated-map",
               "https://github.com/jortsupetterson",
               "https://www.npmjs.com/~jortsupetterson",
               "https://jsr.io/user/ab186a13-a64f-429e-a757-927aa4fa6e6c",
@@ -293,21 +293,21 @@
     <section id="abstract">
       <p>
         This document defines Convergent Replicated Map (CR-Map), a delta CRDT
-        for a dynamic string-keyd map. Each field resolves to one visible value.
-        Every overwrite is assigned a UUIDv7, and overwritten identifiers are
-        retained as per-field tombstones.
+        for dynamic non-empty string-keyed maps. Each key resolves to at most
+        one visible value. Every accepted write is assigned a UUIDv7, and
+        replaced or deleted identifiers are retained as tombstones.
       </p>
       <p>
-        The specification defines the data Mapure, merge rules, snapshot and
-        delta formats, garbage-collection rules, acknowledgement formats, and
-        one conforming JavaScript binding.
+        The specification defines the replica model, snapshot and delta formats,
+        merge rules, acknowledgement and garbage-collection rules, and one
+        conforming JavaScript binding.
       </p>
     </section>
 
     <section id="sotd">
       <p>
-        CR-Map is designed to serve as a small replicated core for dynamic-key
-        string keyd maps.
+        CR-Map is designed to serve as a small replicated core for dynamic
+        key-value state, gossip protocols, and local-first synchronization.
       </p>
       <p>
         This specification is maintained alongside a reference implementation.
@@ -317,12 +317,12 @@
       <ul>
         <li>
           <a
-            href="https://www.npmjs.com/package/@sovereignbase/convergent-replicated-Map"
+            href="https://www.npmjs.com/package/@sovereignbase/convergent-replicated-map"
             >NPM Registry</a
           >
         </li>
         <li>
-          <a href="https://jsr.io/@sovereignbase/convergent-replicated-Map"
+          <a href="https://jsr.io/@sovereignbase/convergent-replicated-map"
             >JSR Registry</a
           >
         </li>
@@ -333,16 +333,15 @@
 
     <section id="conformance">
       <p>
-        Unless otherwise stated, data-Mapure and algorithm terms such as
+        Unless otherwise stated, data-structure and algorithm terms such as
         <em>list</em>, <em>set</em>, <em>map</em>, <em>record</em>,
         <em>parameters</em>, <em>variables</em>, and <em>iterate</em> are used
         with the meanings defined by Infra [[INFRA]].
       </p>
       <p>
-        A conforming implementation MUST preserve the fixed-key replica shape,
-        field overwrite semantics, convergence properties, and per-field
-        garbage-collection safety defined by the algorithms in this
-        specification.
+        A conforming implementation MUST preserve the visible key-value
+        convergence, reply-delta behavior, and tombstone-safety constraints
+        defined by the algorithms in this specification.
       </p>
     </section>
 
@@ -350,96 +349,120 @@
       <h2>Terminology</h2>
       <p>
         A <dfn>CR-Map replica</dfn> is one independently mutable instance of the
-        data Mapure.
+        data structure.
       </p>
       <p>
         A <dfn>UUIDv7 identifier</dfn> is an identifier that is a valid UUID
         version 7 as defined by [[RFC9562]].
       </p>
       <p>
-        A <dfn>serializable object</dfn> is an object that supports being
-        serialized, and later deserialized as defined by [[HTML]].
+        A <dfn>serializable object</dfn> is an object that supports structured
+        serialization and later structured deserialization as defined by
+        [[HTML]].
       </p>
       <p>
-        A <dfn>field key</dfn> is one own property name present in the replica's
-        default object.
+        A <dfn>map key</dfn> is a non-empty string naming one visible slot in a
+        <a>CR-Map replica</a>.
       </p>
       <p>
-        A <dfn>field value</dfn> is the consumer-defined payload presently
-        selected for one <a>field key</a>.
+        A <dfn>map value</dfn> is the consumer-defined payload presently
+        selected for one <a>map key</a>.
       </p>
       <p>
-        A <dfn>field entry</dfn> is the internal record for one
-        <a>field key</a>, consisting of a current winning <code>uuidv7</code>,
-        current winning <code>value</code>, current winning
-        <code>predecessor</code>, and a set of retained <code>tombstones</code>.
+        A <dfn>state entry</dfn> is the internal record for one visible key,
+        consisting of a winning <code>uuidv7</code>, a winning
+        <code>value</code>, and a winning <code>predecessor</code>.
       </p>
       <p>
-        A <dfn>predecessor identifier</dfn> is an <a>UUIDv7 identifier</a>
-        naming the immediately previous winning identifier for the same
-        <a>field key</a>.
+        A <dfn>predecessor identifier</dfn> is a
+        <a>UUIDv7 identifier</a> referenced by a <a>state entry</a> as the
+        immediate causal predecessor of that winning write for the same
+        <a>map key</a>.
       </p>
       <p>
-        A <dfn>field tombstone</dfn> is one overwritten
-        <a>UUIDv7 identifier</a> retained by a <a>field entry</a>.
+        A <dfn>tombstone entry</dfn> is a retained <a>UUIDv7 identifier</a>
+        representing a replaced, deleted, or otherwise dominated write.
       </p>
       <p>
-        An <dfn>acknowledgement frontier</dfn> is, for one <a>field key</a>, the
-        largest retained <a>field tombstone</a> under lexicographic comparison.
+        A <dfn>live projection</dfn> is the current key-value map formed by the
+        visible <a>state entry</a>(s) of a <a>CR-Map replica</a>.
       </p>
       <p>
-        A <dfn>snapshot</dfn> is a full <a>serializable object</a> presentation
-        of the current <a>CR-Map replica</a>.
+        A <dfn>snapshot</dfn> is the full
+        <a>serializable object</a> representation of a <a>CR-Map replica</a>.
       </p>
       <p>
         A <dfn>delta</dfn> is a partial <a>snapshot</a> containing only the
-        fields a replica wishes to share.
+        value entries or tombstones a replica wishes to share.
+      </p>
+      <p>
+        An <dfn>acknowledgement frontier</dfn> is the largest retained
+        <a>tombstone entry</a> of one replica under lexicographic comparison.
+      </p>
+      <p>
+        A <dfn>reply delta</dfn> is a <a>delta</a> emitted by merge when local
+        state already dominates an incoming contender and the replica chooses to
+        rebut with its current winning information.
       </p>
     </section>
 
     <section id="core-model">
       <h2>Core Model</h2>
       <p>
-        A <a>CR-Map replica</a> consists of a fixed set of <a>field key</a>(s)
-        defined at conMapion time. Each key stores exactly one current visible
-        <a>field value</a>, one current winning <a>UUIDv7 identifier</a>, one
-        current winning <a>predecessor identifier</a>, and a set of retained
-        <a>field tombstone</a>(s).
+        A <a>CR-Map replica</a> stores zero or more visible
+        <a>state entry</a>(s) keyed by dynamic <a>map key</a>(s). Each visible
+        key has at most one winning entry at a time.
       </p>
       <p>
-        The replica shape MUST remain fixed after conMapion. A conforming
-        implementation MUST ignore unknown keys arriving from snapshots, deltas,
-        and acknowledgement frontiers, and MUST preserve only keys present in
-        the default object supplied at conMapion time.
+        Every accepted local write mints a fresh winning
+        <a>UUIDv7 identifier</a>. If the key already had a winner, that previous
+        winning identifier becomes the new write's
+        <a>predecessor identifier</a> and is retained as a
+        <a>tombstone entry</a>. If the key did not yet exist, the replica still
+        mints a fresh <a>predecessor identifier</a> and retains it as a
+        tombstone so that the first write has a stable predecessor anchor.
       </p>
       <p>
-        Each local overwrite produces a fresh winning
-        <a>UUIDv7 identifier</a>, moves the previous winning identifier into the
-        field's tombstone set, and records the previous winning identifier as
-        the new <a>predecessor identifier</a>.
+        Deleting a key removes its visible entry from the
+        <a>live projection</a> and retains that deleted winner's UUIDv7 as a
+        <a>tombstone entry</a>.
       </p>
       <p>
-        On merge, each field is resolved independently. Incoming tombstones
-        extend local knowledge. Incoming winners may be adopted directly, may be
-        rejected with a reply delta, or may trigger a fresh local overwrite that
-        collapses a conflicting same-UUID state into one newer winning event.
+        On merge, incoming tombstones can immediately delete locally visible
+        winners. Incoming value entries are resolved independently per key.
+        Direct descendants win over the winner they descend from, same-UUID
+        contenders can advance through a larger predecessor, and otherwise the
+        lexicographically larger UUIDv7 wins.
       </p>
       <p>
-        A snapshot or delta input MAY contain malformed or unknown members. A
-        conforming implementation processes only the known top-level field keys
-        and ignores entries that do not successfully parse against the local
-        default field runtime type.
+        When an incoming contender loses against already-dominant local state, a
+        conforming implementation MAY emit a <a>reply delta</a> containing the
+        local winner and, when applicable, the losing contender's UUIDv7 as a
+        tombstone.
+      </p>
+      <p>
+        The convergence target is the visible <a>live projection</a>. Internal
+        tombstone sets need not be identical at every intermediate step, but
+        acknowledgement-driven garbage collection MUST NOT remove tombstones
+        still required for future convergence.
+      </p>
+      <p>
+        Snapshot and delta ingress is intentionally tolerant. Unknown top-level
+        members, malformed entries, invalid UUIDs, invalid keys, and
+        non-cloneable value payloads are ignored rather than becoming visible
+        state.
       </p>
     </section>
 
     <section>
-      <h2>Data Mapure</h2>
+      <h2>Data Structure</h2>
       <p>
         The same logical replica can be viewed through three useful
-        representations: the serializable snapshot used for transport and
-        storage, one possible runtime projection used internally by a binding,
-        and the final consumer-facing visible object.
+        representations: the detached structured-clone snapshot used for
+        transport and storage, one possible runtime projection used internally
+        by a binding, and the final consumer-facing visible object.
       </p>
+
       <section>
         <h3>Snapshot</h3>
         <pre
@@ -469,322 +492,561 @@
     </section>
 
     <section>
-      <h2>Algorithms</h2>
+      <h2>Core Algorithms</h2>
 
       <section>
-        <h3>CRUD</h3>
-
-        <section>
-          <h4>Create</h4>
-          <ol class="algorithm">
-            <li>
-              Attempt to copy the supplied defaults object with
-              <code>MapuredClone</code>. If copying fails, then fail.
-            </li>
-            <li>
-              Let the result be a new empty <a>CR-Map replica</a> whose
-              <code>entries</code> member is empty and whose
-              <code>defaults</code> member is the copied defaults object.
-            </li>
-            <li>
-              Let <var>snapshotIsRecord</var> be true if the supplied snapshot
-              is a record, otherwise false.
-            </li>
-            <li>
-              For each own <a>field key</a> of the original defaults object:
-              <ol>
-                <li>
-                  Let <var>defaultValue</var> be the copied default value for
-                  that key.
-                </li>
-                <li>
-                  If <var>snapshotIsRecord</var> is true, the snapshot has an
-                  own property for that key, and the snapshot entry successfully
-                  runs the <a>mint a snapshot field entry</a> algorithm against
-                  <var>defaultValue</var>, then store the minted entry as the
-                  live field entry and continue to the next key.
-                </li>
-                <li>
-                  Otherwise mint one fresh root UUIDv7 and one fresh winning
-                  UUIDv7.
-                </li>
-                <li>
-                  Store a field entry whose <code>uuidv7</code> is the fresh
-                  winning UUIDv7, whose <code>predecessor</code> is the fresh
-                  root UUIDv7, whose <code>value</code> is
-                  <var>defaultValue</var>, and whose <code>tombstones</code> set
-                  initially contains only the fresh root UUIDv7.
-                </li>
-              </ol>
-            </li>
-            <li>Return the result.</li>
-          </ol>
-        </section>
-
-        <section>
-          <h4>Read</h4>
-          <ol class="algorithm">
-            <li>
-              Let <var>entry</var> be the current live <a>field entry</a> for
-              the supplied <a>field key</a>.
-            </li>
-            <li>
-              Return a detached Mapured clone of <var>entry</var>'s
-              <code>value</code>.
-            </li>
-          </ol>
-        </section>
-
-        <section>
-          <h4>Update</h4>
-          <ol class="algorithm">
-            <li>
-              Attempt to copy the supplied value with
-              <code>MapuredClone</code>. If copying fails, then fail.
-            </li>
-            <li>
-              If the runtime prototype of the copied value does not equal the
-              runtime prototype of the default value for the supplied
-              <a>field key</a>, then fail.
-            </li>
-            <li>
-              Run the local overwrite procedure for that field using the copied
-              value.
-            </li>
-            <li>
-              Return a <a>delta</a> containing the new snapshot entry for that
-              field together with a visible change patch mapping the key to the
-              copied value.
-            </li>
-          </ol>
-        </section>
-
-        <section>
-          <h4>Delete</h4>
-          <ol class="algorithm">
-            <li>
-              If a specific key was supplied and the replica does not contain
-              that key, then fail.
-            </li>
-            <li>
-              If a specific key was supplied, then run the local overwrite
-              procedure for that field using the field's default value.
-            </li>
-            <li>
-              Otherwise, for each <a>field key</a> in the replica, run the local
-              overwrite procedure for that field using that field's default
-              value.
-            </li>
-            <li>
-              Return a <a>delta</a> containing the resulting snapshot entries
-              together with a visible change patch mapping each touched key to
-              its reset value.
-            </li>
-          </ol>
-        </section>
+        <h3>Create</h3>
+        <ol class="algorithm">
+          <li>
+            Let <var>replica</var> be a new runtime state whose
+            <code>values</code> and <code>relations</code> are empty maps and
+            whose <code>tombstones</code> and <code>predecessors</code> are
+            empty sets.
+          </li>
+          <li>
+            If the supplied <a>snapshot</a> is not a record, then return
+            <var>replica</var>.
+          </li>
+          <li>
+            If the snapshot exposes a <code>tombstones</code> member and that
+            member is a list:
+            <ol>
+              <li>
+                For each listed tombstone, if it is a valid
+                <a>UUIDv7 identifier</a> and is not already retained, add it to
+                <var>replica</var>'s tombstone set.
+              </li>
+            </ol>
+          </li>
+          <li>
+            If the snapshot does not expose a <code>values</code> member, or
+            that member is not a list, then return <var>replica</var>.
+          </li>
+          <li>
+            For each listed candidate value entry:
+            <ol>
+              <li>If the candidate is not a record, then continue.</li>
+              <li>
+                If <var>replica</var> already tombstones the candidate
+                <code>uuidv7</code>, then continue.
+              </li>
+              <li>
+                Run the
+                <a>transform a snapshot value entry to a state entry</a>
+                algorithm. If it returns failure, continue.
+              </li>
+              <li>
+                Let <var>current</var> be the presently visible local winner for
+                the same <a>map key</a>, if one exists.
+              </li>
+              <li>
+                If <var>current</var> exists, has the same
+                <code>uuidv7</code> as the candidate, and its
+                <code>predecessor</code> is lexicographically greater than or
+                equal to the candidate's predecessor, then continue.
+              </li>
+              <li>
+                If <var>current</var> exists, has a different
+                <code>uuidv7</code>, is not the candidate's direct predecessor,
+                and its <code>uuidv7</code> is lexicographically greater than or
+                equal to the candidate's <code>uuidv7</code>, then continue.
+              </li>
+              <li>
+                If <var>current</var> exists:
+                <ol>
+                  <li>
+                    Remove <var>current</var>'s <code>uuidv7</code> from the
+                    relations index.
+                  </li>
+                  <li>
+                    Remove <var>current</var>'s <code>predecessor</code> from
+                    the predecessors set.
+                  </li>
+                </ol>
+              </li>
+              <li>
+                Store the candidate as the winning entry for its
+                <a>map key</a>.
+              </li>
+              <li>
+                Map the candidate <code>uuidv7</code> back to its key in the
+                relations index.
+              </li>
+              <li>
+                Record the candidate <code>predecessor</code> in the
+                predecessors set.
+              </li>
+            </ol>
+          </li>
+          <li>Return <var>replica</var>.</li>
+        </ol>
       </section>
 
       <section>
-        <h3>MAGS</h3>
+        <h3>Read</h3>
+        <ol class="algorithm">
+          <li>
+            Let <var>entry</var> be the current visible entry for the supplied
+            <a>map key</a>.
+          </li>
+          <li>
+            If <var>entry</var> does not exist, then return
+            <code>undefined</code>.
+          </li>
+          <li>
+            Return a detached structured clone of <var>entry</var>'s
+            <a>map value</a>.
+          </li>
+        </ol>
+      </section>
 
-        <section>
-          <h4>Merge</h4>
-          <ol class="algorithm">
-            <li>
-              If the supplied candidate is not a record, then return no change.
-            </li>
-            <li>Let the reply delta be an empty record.</li>
-            <li>Let the visible change patch be an empty record.</li>
-            <li>
-              For each own property of the incoming candidate:
-              <ol>
-                <li>
-                  If the property name is not a known <a>field key</a>, then
-                  continue.
-                </li>
-                <li>
-                  Run the <a>mint a snapshot field entry</a> algorithm against
-                  the local default value for that key. If minting fails, then
-                  continue.
-                </li>
-                <li>
-                  Let <var>target</var> be the current local field entry for
-                  that key.
-                </li>
-                <li>
-                  Let <var>current</var> be a shallow copy of <var>target</var>.
-                </li>
-                <li>
-                  Let <var>frontier</var> be the lexicographically greatest
-                  tombstone currently retained by <var>target</var>.
-                </li>
-                <li>
-                  For each incoming tombstone in the candidate field entry:
-                  <ol>
-                    <li>
-                      If the tombstone is less than or equal to
-                      <var>frontier</var>, continue.
-                    </li>
-                    <li>
-                      If <var>target</var> already retains that tombstone,
-                      continue.
-                    </li>
-                    <li>Add the tombstone to <var>target</var>.</li>
-                  </ol>
-                </li>
-                <li>
-                  If <var>target</var> already tombstones the candidate
-                  <code>uuidv7</code>, then continue.
-                </li>
-                <li>
-                  If <var>current</var>'s <code>uuidv7</code> equals the
-                  candidate <code>uuidv7</code>:
-                  <ol>
-                    <li>
-                      If <var>current</var>'s <code>predecessor</code> is
-                      lexicographically less than the candidate
-                      <code>predecessor</code>, then adopt the candidate
-                      <code>value</code> and <code>predecessor</code>, add the
-                      candidate predecessor to the tombstone set, record the
-                      visible field change, and continue.
-                    </li>
-                    <li>
-                      Otherwise run the local overwrite procedure using
-                      <var>current</var>'s value, append the resulting snapshot
-                      entry to the reply delta, and continue.
-                    </li>
-                  </ol>
-                </li>
-                <li>
-                  If <var>current</var>'s <code>uuidv7</code> equals the
-                  candidate <code>predecessor</code>, or the target tombstones
-                  already contain <var>current</var>'s <code>uuidv7</code>, or
-                  the candidate <code>uuidv7</code> is lexicographically greater
-                  than <var>current</var>'s <code>uuidv7</code>, then:
-                  <ol>
-                    <li>
-                      Adopt the candidate <code>uuidv7</code>,
-                      <code>value</code>, and <code>predecessor</code>.
-                    </li>
-                    <li>
-                      Add the candidate predecessor and the previous local
-                      winner's UUIDv7 to the target tombstone set.
-                    </li>
-                    <li>Record the visible field change.</li>
-                    <li>Continue.</li>
-                  </ol>
-                </li>
-                <li>
-                  Otherwise add the candidate <code>uuidv7</code> to the target
-                  tombstone set and append the current local field entry to the
-                  reply delta.
-                </li>
-              </ol>
-            </li>
-            <li>
-              If neither the reply delta nor the visible change patch contains
-              any own properties, then return no change.
-            </li>
-            <li>
-              Return the reply delta together with the visible change patch.
-            </li>
-          </ol>
-        </section>
+      <section>
+        <h3>Update</h3>
+        <ol class="algorithm">
+          <li>
+            If the supplied key is not a non-empty string, then return failure.
+          </li>
+          <li>
+            Attempt to detach the supplied value with
+            <code>structuredClone</code>. If that fails, return failure.
+          </li>
+          <li>
+            Let <var>old</var> be the current visible entry for the supplied
+            key, if one exists.
+          </li>
+          <li>
+            Let <var>predecessor</var> be:
+            <ol>
+              <li>
+                <var>old</var>'s winning <code>uuidv7</code>, if <var>old</var>
+                exists.
+              </li>
+              <li>Otherwise a newly minted <a>UUIDv7 identifier</a>.</li>
+            </ol>
+          </li>
+          <li>
+            Let <var>winner</var> be a new <a>state entry</a> whose
+            <code>uuidv7</code> is a newly minted <a>UUIDv7 identifier</a>,
+            whose <code>value</code> stores the key and detached payload, and
+            whose <code>predecessor</code> is <var>predecessor</var>.
+          </li>
+          <li>
+            If <var>old</var> exists:
+            <ol>
+              <li>
+                Remove <var>old</var>'s winning identifier from the relations
+                index.
+              </li>
+              <li>
+                Remove <var>old</var>'s predecessor from the predecessors set.
+              </li>
+            </ol>
+          </li>
+          <li>
+            Store <var>winner</var> as the current visible entry for the key.
+          </li>
+          <li>
+            Map <var>winner</var>'s <code>uuidv7</code> to the key in the
+            relations index.
+          </li>
+          <li>Record <var>predecessor</var> in the predecessors set.</li>
+          <li>Retain <var>predecessor</var> as a <a>tombstone entry</a>.</li>
+          <li>
+            Return:
+            <ol>
+              <li>
+                a <a>delta</a> whose <code>values</code> list contains the new
+                winning snapshot value entry and whose
+                <code>tombstones</code> list contains <var>predecessor</var>;
+                and
+              </li>
+              <li>
+                a <code>CRMapChange</code> mapping the key to a detached clone
+                of the new visible value.
+              </li>
+            </ol>
+          </li>
+        </ol>
+      </section>
 
-        <section>
-          <h4>Acknowledge</h4>
-          <ol class="algorithm">
-            <li>Let the result be an empty acknowledgement record.</li>
-            <li>
-              For each local <a>field entry</a>:
-              <ol>
-                <li>
-                  Iterate the retained tombstones and keep the lexicographically
-                  greatest tombstone seen so far.
-                </li>
-                <li>
-                  Store that greatest tombstone in the result under the field's
-                  key.
-                </li>
-              </ol>
-            </li>
-            <li>Return the result.</li>
-          </ol>
-        </section>
+      <section>
+        <h3>Delete</h3>
+        <ol class="algorithm">
+          <li>
+            If a key was supplied:
+            <ol>
+              <li>
+                Let <var>entry</var> be the current visible entry for that key.
+              </li>
+              <li>If <var>entry</var> does not exist, then return failure.</li>
+              <li>
+                Retain <var>entry</var>'s winning <code>uuidv7</code> as a
+                <a>tombstone entry</a>.
+              </li>
+              <li>Remove the key from the visible values map.</li>
+              <li>
+                Remove <var>entry</var>'s winning identifier from the relations
+                index.
+              </li>
+              <li>
+                Remove <var>entry</var>'s predecessor from the predecessors set.
+              </li>
+              <li>
+                Return:
+                <ol>
+                  <li>
+                    a <a>delta</a> whose <code>tombstones</code> list contains
+                    only the deleted winner's UUIDv7; and
+                  </li>
+                  <li>
+                    a <code>CRMapChange</code> mapping that key to
+                    <code>undefined</code>.
+                  </li>
+                </ol>
+              </li>
+            </ol>
+          </li>
+          <li>
+            Otherwise, if the replica has no visible values, then return
+            failure.
+          </li>
+          <li>
+            Let <var>delta</var> be a new delta whose
+            <code>tombstones</code> list is empty.
+          </li>
+          <li>Let <var>change</var> be an empty <code>CRMapChange</code>.</li>
+          <li>
+            For each visible entry currently stored by the replica:
+            <ol>
+              <li>
+                Retain the entry's winning <code>uuidv7</code> as a
+                <a>tombstone entry</a>.
+              </li>
+              <li>
+                Append that UUIDv7 to <var>delta</var>'s
+                <code>tombstones</code> list.
+              </li>
+              <li>Set <var>change</var>[key] to <code>undefined</code>.</li>
+            </ol>
+          </li>
+          <li>
+            Clear the visible values map, the relations index, and the
+            predecessors set.
+          </li>
+          <li>Return <var>delta</var> together with <var>change</var>.</li>
+        </ol>
+      </section>
 
-        <section>
-          <h4>Garbage Collect</h4>
-          <ol class="algorithm">
-            <li>
-              If the supplied list of acknowledgement frontier objects is empty,
-              then return.
-            </li>
-            <li>Let <var>smallestPerKey</var> be an empty record.</li>
-            <li>
-              For each supplied acknowledgement frontier object:
-              <ol>
-                <li>
-                  For each own property of that frontier:
-                  <ol>
-                    <li>
-                      If the property name is not a known <a>field key</a>, then
-                      continue.
-                    </li>
-                    <li>
-                      If the frontier value is not a valid
-                      <a>UUIDv7 identifier</a>, then continue.
-                    </li>
-                    <li>
-                      If <var>smallestPerKey</var> already stores a value for
-                      that key and that stored value is lexicographically less
-                      than or equal to the new frontier, then continue.
-                    </li>
-                    <li>
-                      Otherwise store the new frontier as the smallest known
-                      acknowledgement for that key.
-                    </li>
-                  </ol>
-                </li>
-              </ol>
-            </li>
-            <li>
-              For each key stored in <var>smallestPerKey</var>:
-              <ol>
-                <li>
-                  Let <var>target</var> be the current local field entry for
-                  that key.
-                </li>
-                <li>
-                  Remove every retained tombstone less than or equal to the
-                  smallest acknowledgement for that key, except the field's
-                  current <code>predecessor</code>.
-                </li>
-              </ol>
-            </li>
-          </ol>
-          <p class="note">
-            This algorithm is only safe when the caller supplies a
-            membership-complete set of acknowledgement frontiers covering every
-            replica whose future convergence must still be preserved. Supplying
-            only a partial frontier set is caller misuse and does not guarantee
-            that an offline replica can later catch up from deltas alone.
-          </p>
-        </section>
+      <section>
+        <h3>Merge</h3>
+        <ol class="algorithm">
+          <li>
+            If the supplied <a>delta</a> is not a record, then return failure.
+          </li>
+          <li>Let <var>change</var> be an empty <code>CRMapChange</code>.</li>
+          <li>Let <var>reply</var> be an empty <a>delta</a>.</li>
+          <li>Let <var>hasChange</var> be false.</li>
+          <li>Let <var>hasReply</var> be false.</li>
+          <li>
+            If the incoming delta exposes a <code>tombstones</code> member and
+            that member is a list:
+            <ol>
+              <li>
+                For each listed tombstone:
+                <ol>
+                  <li>
+                    If it is not a valid <a>UUIDv7 identifier</a>, or is already
+                    locally retained, then continue.
+                  </li>
+                  <li>Retain it as a local <a>tombstone entry</a>.</li>
+                  <li>
+                    Let <var>liveKey</var> be the key presently mapped from that
+                    tombstone in the relations index.
+                  </li>
+                  <li>If <var>liveKey</var> does not exist, then continue.</li>
+                  <li>
+                    Let <var>current</var> be the visible entry for
+                    <var>liveKey</var>.
+                  </li>
+                  <li>
+                    If <var>current</var> does not exist, or its winning
+                    <code>uuidv7</code> is not equal to the tombstone being
+                    processed:
+                    <ol>
+                      <li>
+                        Remove the stale relation mapping for that tombstone.
+                      </li>
+                      <li>Continue.</li>
+                    </ol>
+                  </li>
+                  <li>
+                    Remove <var>current</var> from the visible values map.
+                  </li>
+                  <li>
+                    Remove the tombstoned winner from the relations index.
+                  </li>
+                  <li>
+                    Remove <var>current</var>'s predecessor from the
+                    predecessors set.
+                  </li>
+                  <li>
+                    Set <var>change</var>[<var>liveKey</var>] to
+                    <code>undefined</code>.
+                  </li>
+                  <li>Set <var>hasChange</var> to true.</li>
+                </ol>
+              </li>
+            </ol>
+          </li>
+          <li>
+            If the incoming delta does not expose a <code>values</code> member,
+            or that member is not a list:
+            <ol>
+              <li>
+                If <var>hasChange</var> is true, return
+                <var>change</var> together with <var>reply</var>.
+              </li>
+              <li>Otherwise return failure.</li>
+            </ol>
+          </li>
+          <li>
+            For each listed candidate value entry:
+            <ol>
+              <li>If the candidate is not a record, then continue.</li>
+              <li>
+                If the replica already tombstones the candidate
+                <code>uuidv7</code>, then continue.
+              </li>
+              <li>
+                Run the
+                <a>transform a snapshot value entry to a state entry</a>
+                algorithm. If it returns failure, continue.
+              </li>
+              <li>
+                Let <var>current</var> be the current visible winner for the
+                same <a>map key</a>, if one exists.
+              </li>
+              <li>
+                If <var>current</var> does not exist:
+                <ol>
+                  <li>
+                    Adopt the candidate as the visible winner for that key.
+                  </li>
+                  <li>
+                    Add the candidate <code>uuidv7</code> to the relations
+                    index.
+                  </li>
+                  <li>
+                    Add the candidate <code>predecessor</code> to the
+                    predecessors set.
+                  </li>
+                  <li>
+                    Retain the candidate <code>predecessor</code> as a
+                    tombstone.
+                  </li>
+                  <li>
+                    Set <var>change</var>[key] to a detached clone of the
+                    candidate's visible value.
+                  </li>
+                  <li>Set <var>hasChange</var> to true.</li>
+                  <li>Continue.</li>
+                </ol>
+              </li>
+              <li>
+                If <var>current</var>'s <code>uuidv7</code> equals the
+                candidate's <code>uuidv7</code>:
+                <ol>
+                  <li>
+                    If <var>current</var>'s predecessor is lexicographically
+                    less than the candidate predecessor:
+                    <ol>
+                      <li>
+                        Remove <var>current</var>'s old predecessor from the
+                        predecessors set.
+                      </li>
+                      <li>
+                        Replace <var>current</var>'s visible value with the
+                        candidate value.
+                      </li>
+                      <li>
+                        Replace <var>current</var>'s predecessor with the
+                        candidate predecessor.
+                      </li>
+                      <li>
+                        Add the candidate predecessor to the predecessors set.
+                      </li>
+                      <li>Retain the candidate predecessor as a tombstone.</li>
+                      <li>
+                        Set <var>change</var>[key] to a detached clone of the
+                        new visible value.
+                      </li>
+                      <li>Set <var>hasChange</var> to true.</li>
+                    </ol>
+                  </li>
+                  <li>
+                    Otherwise, if the predecessor is equal and the visible
+                    values are identical, then continue.
+                  </li>
+                  <li>
+                    Otherwise:
+                    <ol>
+                      <li>
+                        Append the current local winner to
+                        <var>reply</var>'s <code>values</code> list.
+                      </li>
+                      <li>Set <var>hasReply</var> to true.</li>
+                    </ol>
+                  </li>
+                  <li>Continue.</li>
+                </ol>
+              </li>
+              <li>
+                If the candidate is a direct descendant of the current winner,
+                or the current winner is already tombstoned, or the candidate
+                <code>uuidv7</code> is lexicographically greater than the
+                current winner's <code>uuidv7</code>:
+                <ol>
+                  <li>Retain the candidate predecessor as a tombstone.</li>
+                  <li>Retain the current winner's UUIDv7 as a tombstone.</li>
+                  <li>
+                    Remove the current winner's identifier from the relations
+                    index.
+                  </li>
+                  <li>
+                    Remove the current winner's predecessor from the
+                    predecessors set.
+                  </li>
+                  <li>
+                    Adopt the candidate as the visible winner for the key.
+                  </li>
+                  <li>
+                    Map the candidate <code>uuidv7</code> to the key in the
+                    relations index.
+                  </li>
+                  <li>
+                    Add the candidate predecessor to the predecessors set.
+                  </li>
+                  <li>
+                    Set <var>change</var>[key] to a detached clone of the
+                    candidate value.
+                  </li>
+                  <li>Set <var>hasChange</var> to true.</li>
+                  <li>Continue.</li>
+                </ol>
+              </li>
+              <li>
+                Otherwise:
+                <ol>
+                  <li>
+                    Retain the losing candidate's UUIDv7 as a local tombstone.
+                  </li>
+                  <li>
+                    Append that UUIDv7 to <var>reply</var>'s
+                    <code>tombstones</code> list.
+                  </li>
+                  <li>
+                    Append the current local winner to <var>reply</var>'s
+                    <code>values</code> list.
+                  </li>
+                  <li>Set <var>hasReply</var> to true.</li>
+                </ol>
+              </li>
+            </ol>
+          </li>
+          <li>
+            If neither <var>hasChange</var> nor <var>hasReply</var> is true,
+            then return failure.
+          </li>
+          <li>Return <var>change</var> together with <var>reply</var>.</li>
+        </ol>
+      </section>
 
-        <section>
-          <h4>Snapshot</h4>
-          <ol class="algorithm">
-            <li>Let the result be an empty record.</li>
-            <li>
-              For each current local <a>field entry</a>, run the
-              <a>shed a live field entry</a> algorithm.
-            </li>
-            <li>
-              Store each shed field entry in the result under its field key.
-            </li>
-            <li>Return the resulting <a>snapshot</a>.</li>
-          </ol>
-        </section>
+      <section>
+        <h3>Acknowledge</h3>
+        <ol class="algorithm">
+          <li>Let <var>largest</var> be the empty string <code>''</code>.</li>
+          <li>
+            For each retained tombstone:
+            <ol>
+              <li>
+                If it is not a valid <a>UUIDv7 identifier</a>, then continue.
+              </li>
+              <li>
+                If it is lexicographically less than <var>largest</var>, then
+                continue.
+              </li>
+              <li>Set <var>largest</var> to that tombstone.</li>
+            </ol>
+          </li>
+          <li>
+            Return <var>largest</var> as the current
+            <a>acknowledgement frontier</a>.
+          </li>
+        </ol>
+      </section>
+
+      <section>
+        <h3>Garbage Collect</h3>
+        <ol class="algorithm">
+          <li>
+            If the supplied list of acknowledgement frontiers is empty, then
+            return.
+          </li>
+          <li>Let <var>smallest</var> be the empty string <code>''</code>.</li>
+          <li>
+            For each supplied frontier:
+            <ol>
+              <li>
+                If it is not a valid <a>UUIDv7 identifier</a>, then continue.
+              </li>
+              <li>
+                If <var>smallest</var> is not empty and is lexicographically
+                less than or equal to the frontier, then continue.
+              </li>
+              <li>Set <var>smallest</var> to that frontier.</li>
+            </ol>
+          </li>
+          <li>
+            If <var>smallest</var> is still the empty string, then return.
+          </li>
+          <li>
+            For each retained tombstone:
+            <ol>
+              <li>
+                If it is lexicographically greater than <var>smallest</var>,
+                then continue.
+              </li>
+              <li>
+                If it is still present in the predecessors set, then continue.
+              </li>
+              <li>Remove it from the tombstone set.</li>
+            </ol>
+          </li>
+        </ol>
+        <p class="note">
+          This algorithm is only safe when the caller supplies acknowledgement
+          frontiers covering every replica whose future convergence must still
+          be preserved. Supplying only a partial frontier set is caller misuse
+          and does not guarantee that an offline replica can later catch up from
+          deltas alone.
+        </p>
+      </section>
+
+      <section>
+        <h3>Snapshot</h3>
+        <ol class="algorithm">
+          <li>
+            Let <var>out</var> be a new snapshot whose <code>values</code> list
+            is empty and whose <code>tombstones</code> list contains all
+            retained tombstones.
+          </li>
+          <li>
+            For each visible <a>state entry</a>, run the
+            <a>transform a state entry to a snapshot value entry</a> algorithm
+            and append the result to <var>out</var>'s <code>values</code> list.
+          </li>
+          <li>Return <var>out</var>.</li>
+        </ol>
       </section>
     </section>
 
@@ -798,18 +1060,25 @@
       <section>
         <h3>API Summary</h3>
         <pre class="idl">
+callback CRMapForEachCallback = undefined (any value, DOMString key, CRMap map);
+
 [Exposed=*]
 interface CRMap {
-  conMapor(object defaults, optional object snapshot = {});
+  constructor(optional object snapshot = {});
+  readonly attribute unsigned long size;
+  any get(DOMString key);
+  boolean has(DOMString key);
+  undefined set(DOMString key, any value);
+  undefined delete(DOMString key);
+  undefined clear();
   undefined merge(optional object delta = {});
   undefined acknowledge();
-  undefined garbageCollect(sequence&lt;object&gt; frontiers);
+  undefined garbageCollect(sequence&lt;DOMString&gt; frontiers);
   undefined snapshot();
   sequence&lt;DOMString&gt; keys();
-  undefined clear();
-  object clone();
   sequence&lt;any&gt; values();
   sequence&lt;sequence&lt;any&gt;&gt; entries();
+  undefined forEach(CRMapForEachCallback callback, optional any thisArg);
   undefined addEventListener(
     DOMString type,
     EventListener? listener,
@@ -825,70 +1094,51 @@ interface CRMap {
   iterable&lt;DOMString, any&gt;;
 };
 
-dictionary CRMapSnapshotEntry {
-  required DOMString uuidv7;
+dictionary CRMapKeyValue {
+  required DOMString key;
   required any value;
+};
+
+dictionary CRMapSnapshotValueEntry {
+  required DOMString uuidv7;
+  required CRMapKeyValue value;
   required DOMString predecessor;
+};
+
+dictionary CRMapSnapshot {
+  required sequence&lt;CRMapSnapshotValueEntry&gt; values;
   required sequence&lt;DOMString&gt; tombstones;
 };
 
-typedef record&lt;DOMString, CRMapSnapshotEntry&gt; CRMapSnapshot;
-typedef record&lt;DOMString, CRMapSnapshotEntry&gt; CRMapDelta;
+dictionary CRMapDelta {
+  sequence&lt;CRMapSnapshotValueEntry&gt; values;
+  sequence&lt;DOMString&gt; tombstones;
+};
+
 typedef record&lt;DOMString, any&gt; CRMapChange;
-typedef record&lt;DOMString, DOMString&gt; CRMapAck;
+typedef DOMString CRMapAck;
         </pre>
         <p>
-          The binding additionally exposes direct property access through a
-          JavaScript <code>Proxy</code>. Reading <code>Map.key</code> returns a
-          detached copy of the current value for that field. Writing
-          <code>Map.key = value</code> performs a local overwrite, and
-          <code>delete Map.key</code> resets that field to its default value.
-        </p>
-        <p>
-          Only keys present in the conMapor's defaults object participate in
-          proxy field access. The binding resolves those known field keys before
-          ordinary reflective property access.
-        </p>
-        <p>
-          The conMapor and <a data-link-for="CRMap">merge()</a> methods are
+          The constructor and <a data-link-for="CRMap">merge()</a> method are
           typed as taking generic objects in the coarse Web IDL summary above so
           that the IDL matches the permissive JavaScript ingress behavior. The
           expected object shapes are <code>CRMapSnapshot</code> and
-          <code>CRMapDelta</code> as defined by the declarations above.
+          <code>CRMapDelta</code> as defined earlier.
         </p>
         <p>
-          <code>JSON.stringify(Map)</code> serializes the binding through its
-          current <a>snapshot</a>, <code>for...of</code> iterates detached
-          <code>[key, value]</code> pairs for the current live fields, and
-          <code>toString()</code> returns the JSON string form of the current
-          snapshot.
+          <code>size</code> returns the current number of visible keys.
+          <a data-link-for="CRMap">get()</a>,
+          <a data-link-for="CRMap">values()</a>,
+          <a data-link-for="CRMap">entries()</a>,
+          <a data-link-for="CRMap">forEach()</a>, and <code>for...of</code>
+          expose detached structured clones rather than mutable references into
+          replica state.
         </p>
-      </section>
-
-      <section>
-        <h3>Errors</h3>
         <p>
-          The JavaScript binding throws <code>CRMapError</code> with a string
-          <code>code</code> attribute for local API misuse.
+          <code>JSON.stringify(map)</code> serializes the binding through its
+          current <a>snapshot</a>, and <code>toString()</code> returns that JSON
+          string.
         </p>
-        <dl>
-          <dt><code>DEFAULTS_NOT_CLONEABLE</code></dt>
-          <dd>
-            Thrown when conMapion receives a defaults object that is not
-            supported by <code>MapuredClone</code>.
-          </dd>
-          <dt><code>VALUE_NOT_CLONEABLE</code></dt>
-          <dd>
-            Thrown when a local field overwrite receives a value that is not
-            supported by <code>MapuredClone</code>.
-          </dd>
-          <dt><code>VALUE_TYPE_MISMATCH</code></dt>
-          <dd>
-            Thrown when a local field overwrite receives a value whose runtime
-            prototype does not match that field's default value runtime
-            prototype.
-          </dd>
-        </dl>
       </section>
 
       <section>
@@ -898,9 +1148,11 @@ typedef record&lt;DOMString, DOMString&gt; CRMapAck;
           <code>EventTarget</code> object as defined by DOM [[DOM]].
         </p>
         <p>
-          The binding forwards addEventListener() and removeEventListener() to
-          that internal event target. Local mutations and merges dispatch
-          synthetic events through the same target.
+          The binding forwards
+          <a data-link-for="CRMap">addEventListener()</a> and
+          <a data-link-for="CRMap">removeEventListener()</a> to that internal
+          event target. Local mutations, merges, acknowledgement emission, and
+          snapshot emission dispatch synthetic events through the same target.
         </p>
         <p>
           The JavaScript binding defines four synthetic event types. Each is a
@@ -911,37 +1163,41 @@ typedef record&lt;DOMString, DOMString&gt; CRMapAck;
           <dt><dfn>delta event</dfn></dt>
           <dd>
             A <code>CustomEvent</code> whose <code>detail</code> is a
-            <a>delta</a>. The binding dispatches this event for local field
-            mutations and for merges that need to emit a reply delta.
+            <a>delta</a>. The binding dispatches this event for local writes and
+            for merges that emit a non-empty <a>reply delta</a>.
           </dd>
           <dt><dfn>change event</dfn></dt>
           <dd>
-            A <code>CustomEvent</code> whose <code>detail</code> is a partial
-            object mapping changed field keys to their new visible values.
+            A <code>CustomEvent</code> whose <code>detail</code> is a sparse
+            visible patch mapping changed keys to their new visible values, with
+            deleted keys mapped to <code>undefined</code>.
           </dd>
           <dt><dfn>ack event</dfn></dt>
           <dd>
             A <code>CustomEvent</code> whose <code>detail</code> is the current
-            per-field acknowledgement frontier produced when
-            <a data-link-for="CRMap">acknowledge()</a> is invoked.
+            <a>acknowledgement frontier</a> produced when
+            <a data-link-for="CRMap">acknowledge()</a> observes at least one
+            retained valid tombstone.
           </dd>
           <dt><dfn>snapshot event</dfn></dt>
           <dd>
             A <code>CustomEvent</code> whose <code>detail</code> is the full
-            current snapshot produced when
+            current <a>snapshot</a> produced when
             <a data-link-for="CRMap">snapshot()</a> is invoked.
           </dd>
         </dl>
         <p>
-          Direct property writes, direct property deletes, and
+          <a data-link-for="CRMap">set()</a>,
+          <a data-link-for="CRMap">delete()</a>, and
           <a data-link-for="CRMap">clear()</a> MUST dispatch
           <a>delta event</a> before <a>change event</a>.
           <a data-link-for="CRMap">merge()</a> MAY dispatch <a>delta event</a>,
           <a>change event</a>, or both, and when both are dispatched the
           <a>delta event</a> MUST be dispatched first.
-          <a data-link-for="CRMap">acknowledge()</a> MUST dispatch
-          <a>ack event</a>, and <a data-link-for="CRMap">snapshot()</a> MUST
-          dispatch a <a>snapshot event</a>.
+          <a data-link-for="CRMap">acknowledge()</a> MUST dispatch an
+          <a>ack event</a> only when the computed frontier is non-empty, and
+          <a data-link-for="CRMap">snapshot()</a> MUST dispatch a
+          <a>snapshot event</a>.
         </p>
       </section>
 
@@ -949,61 +1205,53 @@ typedef record&lt;DOMString, DOMString&gt; CRMapAck;
         <h3>Auxiliary Algorithms</h3>
 
         <section>
-          <h4><dfn>mint a snapshot field entry</dfn></h4>
+          <h4>
+            <dfn>transform a snapshot value entry to a state entry</dfn>
+          </h4>
           <ol class="algorithm">
+            <li>If the candidate is not a record, then return failure.</li>
             <li>
-              If the candidate value is not a record, then return failure.
+              If the candidate does not have its own <code>value</code> member,
+              then return failure.
             </li>
             <li>
-              If the candidate value does not have its own <code>uuidv7</code>,
-              <code>value</code>, <code>predecessor</code>, and
-              <code>tombstones</code> members, then return failure.
-            </li>
-            <li>
-              If the candidate value's <code>uuidv7</code> member is not a valid
+              If the candidate <code>uuidv7</code> is not a valid
               <a>UUIDv7 identifier</a>, then return failure.
             </li>
             <li>
-              If the candidate value's <code>predecessor</code> member is not a
-              valid <a>UUIDv7 identifier</a>, then return failure.
+              If the candidate <code>predecessor</code> is not a valid
+              <a>UUIDv7 identifier</a>, then return failure.
             </li>
             <li>
-              If the candidate value's <code>tombstones</code> member is not a
-              list, then return failure.
+              If the candidate <code>value</code> member is not a record, then
+              return failure.
             </li>
             <li>
-              Attempt to copy the candidate value's <code>value</code> member
-              with <code>MapuredClone</code>. If copying fails, then return
+              If the candidate key is not a non-empty string, then return
               failure.
             </li>
             <li>
-              If the copied value's runtime prototype does not equal the
-              supplied default value's runtime prototype, then return failure.
+              Attempt to detach the candidate payload with
+              <code>structuredClone</code>. If cloning fails, then return
+              failure.
             </li>
             <li>
-              Initialize a new tombstone set from the listed tombstones,
-              retaining only valid <a>UUIDv7 identifier</a>(s).
+              Return a new <a>state entry</a> populated from the candidate
+              fields.
             </li>
-            <li>
-              If the resulting tombstone set contains the candidate
-              <code>uuidv7</code>, then return failure.
-            </li>
-            <li>
-              If the resulting tombstone set does not contain the candidate
-              <code>predecessor</code>, then return failure.
-            </li>
-            <li>Return the minted field entry.</li>
           </ol>
         </section>
 
         <section>
-          <h4><dfn>shed a live field entry</dfn></h4>
+          <h4>
+            <dfn>transform a state entry to a snapshot value entry</dfn>
+          </h4>
           <p>
             Return a new <a>serializable object</a> whose <code>uuidv7</code>,
-            <code>value</code>, <code>predecessor</code>, and
-            <code>tombstones</code> members equal the current live field entry
-            after converting the tombstone set into a list and after detaching
-            the value with <code>MapuredClone</code>.
+            <code>value.key</code>, <code>value.value</code>, and
+            <code>predecessor</code> members equal the current
+            <a>state entry</a> after detaching the payload with
+            <code>structuredClone</code>.
           </p>
         </section>
       </section>
@@ -1012,22 +1260,61 @@ typedef record&lt;DOMString, DOMString&gt; CRMapAck;
         <h3>Methods</h3>
 
         <section data-dfn-for="CRMap">
-          <h5><dfn class="export">ConMapor</dfn></h5>
+          <h5><dfn class="export">Constructor</dfn></h5>
           <p>
-            ConMap a new binding whose internal state is the result of the core
-            create algorithm applied to the supplied defaults object and
-            optional <a>snapshot</a>.
+            Construct a new binding whose internal state is the result of the
+            core create algorithm applied to the optional <a>snapshot</a>.
           </p>
         </section>
 
         <section data-dfn-for="CRMap">
-          <h5><dfn class="export">direct property access</dfn></h5>
+          <h5><dfn class="export">size</dfn></h5>
           <p>
-            Reading <code>Map.key</code> returns the current visible
-            <a>field value</a> copy for that key. Writing
-            <code>Map.key = value</code> runs a one-field local overwrite.
-            Deleting <code>delete Map.key</code> resets that field to its
-            default value.
+            Return the current number of visible <a>map key</a>(s) in the
+            <a>live projection</a>.
+          </p>
+        </section>
+
+        <section data-dfn-for="CRMap">
+          <h5><dfn class="export">get()</dfn></h5>
+          <p>
+            Return a detached copy of the visible <a>map value</a> for the
+            supplied key, or <code>undefined</code> when the key is absent.
+          </p>
+        </section>
+
+        <section data-dfn-for="CRMap">
+          <h5><dfn class="export">has()</dfn></h5>
+          <p>
+            Return true when the supplied key is presently visible in the
+            <a>live projection</a>.
+          </p>
+        </section>
+
+        <section data-dfn-for="CRMap">
+          <h5><dfn class="export">set()</dfn></h5>
+          <p>
+            Run the core update algorithm for the supplied key and visible
+            value, then dispatch the resulting <a>delta event</a> and
+            <a>change event</a> when the write is accepted.
+          </p>
+        </section>
+
+        <section data-dfn-for="CRMap">
+          <h5><dfn class="export">delete()</dfn></h5>
+          <p>
+            Delete the single visible key supplied by the caller and dispatch
+            the resulting <a>delta event</a> and <a>change event</a> when a live
+            key was removed.
+          </p>
+        </section>
+
+        <section data-dfn-for="CRMap">
+          <h5><dfn class="export">clear()</dfn></h5>
+          <p>
+            Delete every visible key from the replica and dispatch the resulting
+            <a>delta event</a> and <a>change event</a> when the map was
+            non-empty.
           </p>
         </section>
 
@@ -1042,8 +1329,8 @@ typedef record&lt;DOMString, DOMString&gt; CRMapAck;
         <section data-dfn-for="CRMap">
           <h5><dfn class="export">acknowledge()</dfn></h5>
           <p>
-            Compute the current per-field <a>acknowledgement frontier</a> and
-            dispatch an <a>ack event</a>.
+            Compute the current <a>acknowledgement frontier</a> and dispatch an
+            <a>ack event</a> when that frontier is non-empty.
           </p>
         </section>
 
@@ -1065,35 +1352,24 @@ typedef record&lt;DOMString, DOMString&gt; CRMapAck;
 
         <section data-dfn-for="CRMap">
           <h5><dfn class="export">keys()</dfn></h5>
-          <p>Return the current <a>field key</a>(s) as a list of strings.</p>
-        </section>
-
-        <section data-dfn-for="CRMap">
-          <h5><dfn class="export">clear()</dfn></h5>
           <p>
-            Reset every field in the replica back to its default value and
-            dispatch the resulting <a>delta event</a> and <a>change event</a>.
-          </p>
-        </section>
-
-        <section data-dfn-for="CRMap">
-          <h5><dfn class="export">clone()</dfn></h5>
-          <p>
-            Return a detached plain object containing the current visible field
-            values keyed by their field names.
+            Return the current visible <a>map key</a>(s) in map iteration order.
           </p>
         </section>
 
         <section data-dfn-for="CRMap">
           <h5><dfn class="export">values()</dfn></h5>
-          <p>Return detached copies of the current visible field values.</p>
+          <p>
+            Return detached copies of the current visible
+            <a>map value</a>(s) in map iteration order.
+          </p>
         </section>
 
         <section data-dfn-for="CRMap">
           <h5><dfn class="export">entries()</dfn></h5>
           <p>
             Return detached <code>[key, value]</code> pairs for the current
-            visible fields.
+            <a>live projection</a> in map iteration order.
           </p>
         </section>
 
@@ -1101,15 +1377,25 @@ typedef record&lt;DOMString, DOMString&gt; CRMapAck;
           <h5><dfn class="export">@@iterator</dfn></h5>
           <p>
             Iterate detached <code>[key, value]</code> pairs for the current
-            visible fields.
+            <a>live projection</a> in map iteration order.
+          </p>
+        </section>
+
+        <section data-dfn-for="CRMap">
+          <h5><dfn class="export">forEach()</dfn></h5>
+          <p>
+            Call the supplied callback once for each detached visible
+            <a>map value</a> in map iteration order, passing value, key, and the
+            map object.
           </p>
         </section>
 
         <section data-dfn-for="CRMap">
           <h5><dfn class="export">toJSON()</dfn></h5>
           <p>
-            Return the same serialized shape as <a>snapshot</a>. This is the
-            value used by <code>JSON.stringify</code>.
+            Return the same detached structured-clone-compatible shape as
+            <a>snapshot</a>. This is the value used by
+            <code>JSON.stringify</code>.
           </p>
         </section>
 
