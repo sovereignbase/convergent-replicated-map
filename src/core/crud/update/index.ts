@@ -10,7 +10,7 @@ import { v7 as uuidv7 } from 'uuid'
 /**
  * Overwrites the current visible value for a key and emits the resulting delta.
  *
- * The incoming value is cloned first, then written as the new winning state
+ * The incoming value is cloned first, then written as the new current state
  * entry for `key`. The predecessor entry is tombstoned so the returned delta is
  * ready for gossip. Internal helper indexes are updated to keep merge and
  * garbage collection logic coherent.

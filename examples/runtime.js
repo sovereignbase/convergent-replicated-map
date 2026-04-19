@@ -1,4 +1,4 @@
-const contacts = {
+const replica = {
   values: new Map([
     [
       '019d81fd-a1e9-76dd-aaf0-f4dd2ac2accc',
@@ -7,10 +7,9 @@ const contacts = {
         value: {
           key: '019d81fd-a1e9-76dd-aaf0-f4dd2ac2accc',
           value: {
-            name: 'Alice Example',
-            email: 'alice@example.com',
-            tags: ['friend', 'vip'],
-            online: true,
+            label: 'alpha',
+            version: 3,
+            archived: false,
           },
         },
         predecessor: '019d81fd-a1e8-72a8-bfc3-a4b6160544fc',
@@ -23,10 +22,9 @@ const contacts = {
         value: {
           key: '019d81fd-a1ea-75cf-b513-f35976cefc93',
           value: {
-            name: 'Bob Example',
-            email: 'bob@example.com',
-            tags: ['coworker'],
-            online: false,
+            label: 'beta',
+            version: 1,
+            archived: true,
           },
         },
         predecessor: '019d81fd-a1e9-76dd-aaf0-f2cdabfac485',

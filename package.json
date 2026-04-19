@@ -7,8 +7,6 @@
   "keywords": [
     "crdt",
     "map",
-    "membership",
-    "contacts",
     "replicated",
     "convergent",
     "local-first",

@@ -306,9 +306,8 @@
 
     <section id="sotd">
       <p>
-        CR-Map is designed to satisfy the need for a CRDT that allows
-        dynamically identified or indexed, objects or other members to be
-        managed asynchronously without conflicts.
+        CR-Map is designed to serve as a replicated core for dynamic
+        string-keyed state.
       </p>
       <p>
         This specification is maintained alongside a reference implementation.
@@ -340,9 +339,9 @@
         with the meanings defined by Infra [[INFRA]].
       </p>
       <p>
-        A conforming implementation MUST preserve the visible membership
-        convergence, reply-delta behavior, and tombstone-safety constraints
-        defined by the algorithms in this specification.
+        A conforming implementation MUST preserve the visible map convergence,
+        reply-delta behavior, and tombstone-safety constraints defined by the
+        algorithms in this specification.
       </p>
     </section>
 
@@ -362,22 +361,22 @@
         [[HTML]].
       </p>
       <p>
-        A <dfn>map key</dfn> is a non-empty string naming one visible member in
-        a <a>CR-Map replica</a>.
+        A <dfn>map key</dfn> is a non-empty string naming one visible entry in a
+        <a>CR-Map replica</a>.
       </p>
       <p>
-        A <dfn>map value</dfn> is the consumer-defined member payload presently
+        A <dfn>map value</dfn> is the consumer-defined payload presently
         selected for one <a>map key</a>.
       </p>
       <p>
         A <dfn>state entry</dfn> is the internal record for one visible key,
-        consisting of a winning <code>uuidv7</code>, a winning
-        <code>value</code>, and a winning <code>predecessor</code>.
+        consisting of a current <code>uuidv7</code>, current <code>value</code>,
+        and current <code>predecessor</code>.
       </p>
       <p>
         A <dfn>predecessor identifier</dfn> is a
         <a>UUIDv7 identifier</a> referenced by a <a>state entry</a> as the
-        immediate causal predecessor of that winning write for the same
+        immediate causal predecessor of that state entry for the same
         <a>map key</a>.
       </p>
       <p>
@@ -385,8 +384,8 @@
         representing a replaced, deleted, or otherwise dominated write.
       </p>
       <p>
-        A <dfn>live projection</dfn> is the current indexed membership view
-        formed by the visible <a>state entry</a>(s) of a <a>CR-Map replica</a>.
+        A <dfn>live projection</dfn> is the current keyed visible view formed by
+        the visible <a>state entry</a>(s) of a <a>CR-Map replica</a>.
       </p>
       <p>
         A <dfn>snapshot</dfn> is the full
@@ -403,7 +402,7 @@
       <p>
         A <dfn>reply delta</dfn> is a <a>delta</a> emitted by merge when local
         state already dominates an incoming contender and the replica chooses to
-        rebut with its current winning information.
+        return its current local state.
       </p>
     </section>
 
@@ -411,8 +410,8 @@
       <h2>Core Model</h2>
       <p>
         A <a>CR-Map replica</a> stores zero or more visible
-        <a>state entry</a>(s) keyed by member identifiers. Each visible key has
-        at most one winning entry at a time.
+        <a>state entry</a>(s) keyed by map keys. Each visible key has at most
+        one current entry at a time.
       </p>
       <p>
         Every accepted local write mints a fresh
@@ -430,16 +429,16 @@
       </p>
       <p>
         On merge, incoming tombstones can immediately delete locally visible
-        winners. Incoming value entries are resolved independently per key.
-        Direct descendants win over the winner they descend from, same-UUID
+        entries. Incoming value entries are resolved independently per key.
+        Direct descendants supersede the entries they descend from, same-UUID
         contenders can advance through a larger predecessor, and otherwise the
-        lexicographically larger UUIDv7 wins.
+        lexicographically larger UUIDv7 is selected.
       </p>
       <p>
         When an incoming contender loses against already-dominant local state, a
         conforming implementation MAY emit a <a>reply delta</a> containing the
-        local winner and, when applicable, the losing contender's UUIDv7 as a
-        tombstone.
+        current local entry and, when applicable, the losing contender's UUIDv7
+        as a tombstone.
       </p>
       <p>
         The convergence target is the visible <a>live projection</a>. Internal
@@ -461,7 +460,7 @@
         The same logical replica can be viewed through three useful
         representations: the detached structured-clone snapshot used for
         transport and storage, one possible runtime projection used internally
-        by a binding, and the final consumer-facing indexed membership view.
+        by a binding, and the final consumer-facing keyed visible view.
       </p>
 
       <section>
@@ -537,7 +536,7 @@
                 algorithm. If it returns failure, continue.
               </li>
               <li>
-                Let <var>current</var> be the presently visible local winner for
+                Let <var>current</var> be the presently visible local entry for
                 the same <a>map key</a>, if one exists.
               </li>
               <li>
@@ -566,7 +565,7 @@
                 </ol>
               </li>
               <li>
-                Store the candidate as the winning entry for its
+                Store the candidate as the current visible entry for its
                 <a>map key</a>.
               </li>
               <li>
@@ -619,14 +618,14 @@
             Let <var>predecessor</var> be:
             <ol>
               <li>
-                <var>old</var>'s winning <code>uuidv7</code>, if <var>old</var>
+                <var>old</var>'s current <code>uuidv7</code>, if <var>old</var>
                 exists.
               </li>
               <li>Otherwise a newly minted <a>UUIDv7 identifier</a>.</li>
             </ol>
           </li>
           <li>
-            Let <var>winner</var> be a new <a>state entry</a> whose
+            Let <var>entry</var> be a new <a>state entry</a> whose
             <code>uuidv7</code> is a newly minted <a>UUIDv7 identifier</a>,
             whose <code>value</code> stores the key and detached payload, and
             whose <code>predecessor</code> is <var>predecessor</var>.
@@ -635,7 +634,7 @@
             If <var>old</var> exists:
             <ol>
               <li>
-                Remove <var>old</var>'s winning identifier from the relations
+                Remove <var>old</var>'s current identifier from the relations
                 index.
               </li>
               <li>
@@ -644,10 +643,10 @@
             </ol>
           </li>
           <li>
-            Store <var>winner</var> as the current visible entry for the key.
+            Store <var>entry</var> as the current visible entry for the key.
           </li>
           <li>
-            Map <var>winner</var>'s <code>uuidv7</code> to the key in the
+            Map <var>entry</var>'s <code>uuidv7</code> to the key in the
             relations index.
           </li>
           <li>Record <var>predecessor</var> in the predecessors set.</li>
@@ -657,9 +656,8 @@
             <ol>
               <li>
                 a <a>delta</a> whose <code>values</code> list contains the new
-                winning snapshot value entry and whose
-                <code>tombstones</code> list contains <var>predecessor</var>;
-                and
+                snapshot value entry and whose <code>tombstones</code> list
+                contains <var>predecessor</var>; and
               </li>
               <li>
                 a <code>CRMapChange</code> mapping the key to a detached clone
@@ -681,12 +679,12 @@
               </li>
               <li>If <var>entry</var> does not exist, then return failure.</li>
               <li>
-                Retain <var>entry</var>'s winning <code>uuidv7</code> as a
+                Retain <var>entry</var>'s current <code>uuidv7</code> as a
                 <a>tombstone entry</a>.
               </li>
               <li>Remove the key from the visible values map.</li>
               <li>
-                Remove <var>entry</var>'s winning identifier from the relations
+                Remove <var>entry</var>'s current identifier from the relations
                 index.
               </li>
               <li>
@@ -697,7 +695,7 @@
                 <ol>
                   <li>
                     a <a>delta</a> whose <code>tombstones</code> list contains
-                    only the deleted winner's UUIDv7; and
+                    only the deleted entry's UUIDv7; and
                   </li>
                   <li>
                     a <code>CRMapChange</code> mapping that key to
@@ -720,7 +718,7 @@
             For each visible entry currently stored by the replica:
             <ol>
               <li>
-                Retain the entry's winning <code>uuidv7</code> as a
+                Retain the entry's current <code>uuidv7</code> as a
                 <a>tombstone entry</a>.
               </li>
               <li>
@@ -770,7 +768,7 @@
                     <var>liveKey</var>.
                   </li>
                   <li>
-                    If <var>current</var> does not exist, or its winning
+                    If <var>current</var> does not exist, or its current
                     <code>uuidv7</code> is not equal to the tombstone being
                     processed:
                     <ol>
@@ -783,9 +781,7 @@
                   <li>
                     Remove <var>current</var> from the visible values map.
                   </li>
-                  <li>
-                    Remove the tombstoned winner from the relations index.
-                  </li>
+                  <li>Remove the tombstoned entry from the relations index.</li>
                   <li>
                     Remove <var>current</var>'s predecessor from the
                     predecessors set.
@@ -824,14 +820,15 @@
                 algorithm. If it returns failure, continue.
               </li>
               <li>
-                Let <var>current</var> be the current visible winner for the
-                same <a>map key</a>, if one exists.
+                Let <var>current</var> be the current visible entry for the same
+                <a>map key</a>, if one exists.
               </li>
               <li>
                 If <var>current</var> does not exist:
                 <ol>
                   <li>
-                    Adopt the candidate as the visible winner for that key.
+                    Adopt the candidate as the current visible entry for that
+                    key.
                   </li>
                   <li>
                     Add the candidate <code>uuidv7</code> to the relations
@@ -892,7 +889,7 @@
                     Otherwise:
                     <ol>
                       <li>
-                        Append the current local winner to
+                        Append the current local entry to
                         <var>reply</var>'s <code>values</code> list.
                       </li>
                       <li>Set <var>hasReply</var> to true.</li>
@@ -902,23 +899,24 @@
                 </ol>
               </li>
               <li>
-                If the candidate is a direct descendant of the current winner,
-                or the current winner is already tombstoned, or the candidate
+                If the candidate is a direct descendant of the current entry, or
+                the current entry is already tombstoned, or the candidate
                 <code>uuidv7</code> is lexicographically greater than the
-                current winner's <code>uuidv7</code>:
+                current entry's <code>uuidv7</code>:
                 <ol>
                   <li>Retain the candidate predecessor as a tombstone.</li>
-                  <li>Retain the current winner's UUIDv7 as a tombstone.</li>
+                  <li>Retain the current entry's UUIDv7 as a tombstone.</li>
                   <li>
-                    Remove the current winner's identifier from the relations
+                    Remove the current entry's identifier from the relations
                     index.
                   </li>
                   <li>
-                    Remove the current winner's predecessor from the
-                    predecessors set.
+                    Remove the current entry's predecessor from the predecessors
+                    set.
                   </li>
                   <li>
-                    Adopt the candidate as the visible winner for the key.
+                    Adopt the candidate as the current visible entry for the
+                    key.
                   </li>
                   <li>
                     Map the candidate <code>uuidv7</code> to the key in the
@@ -946,7 +944,7 @@
                     <code>tombstones</code> list.
                   </li>
                   <li>
-                    Append the current local winner to <var>reply</var>'s
+                    Append the current local entry to <var>reply</var>'s
                     <code>values</code> list.
                   </li>
                   <li>Set <var>hasReply</var> to true.</li>
@@ -1127,7 +1125,7 @@ typedef DOMString CRMapAck;
           <code>CRMapDelta</code> as defined earlier.
         </p>
         <p>
-          <code>size</code> returns the current number of visible members.
+          <code>size</code> returns the current number of visible keys.
           <a data-link-for="CRMap">get()</a>,
           <a data-link-for="CRMap">values()</a>,
           <a data-link-for="CRMap">entries()</a>,
@@ -1193,8 +1191,8 @@ typedef DOMString CRMapAck;
           <dt><dfn>change event</dfn></dt>
           <dd>
             A <code>CustomEvent</code> whose <code>detail</code> is a sparse
-            visible patch mapping changed member identifiers to their new
-            visible values, with deleted keys mapped to <code>undefined</code>.
+            visible patch mapping changed keys to their new visible values, with
+            deleted keys mapped to <code>undefined</code>.
           </dd>
           <dt><dfn>ack event</dfn></dt>
           <dd>
@@ -1294,7 +1292,7 @@ typedef DOMString CRMapAck;
         <section data-dfn-for="CRMap">
           <h5><dfn class="export">size</dfn></h5>
           <p>
-            Return the current number of visible members in the
+            Return the current number of visible keys in the
             <a>live projection</a>.
           </p>
         </section>
@@ -1379,10 +1377,7 @@ typedef DOMString CRMapAck;
 
         <section data-dfn-for="CRMap">
           <h5><dfn class="export">keys()</dfn></h5>
-          <p>
-            Return the current visible member identifiers in map iteration
-            order.
-          </p>
+          <p>Return the current visible keys in map iteration order.</p>
         </section>
 
         <section data-dfn-for="CRMap">

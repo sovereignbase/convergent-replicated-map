@@ -48,38 +48,26 @@ vlt install jsr:@sovereignbase/convergent-replicated-map
 ```ts
 import { CRMap } from '@sovereignbase/convergent-replicated-map'
 
-type Contact = {
-  name: string
-  email: string
-  tags: string[]
-  online: boolean
+type EntryValue = {
+  label: string
+  version: number
 }
 
-const CONTACT_ALICE = '019d81fd-a1e9-76dd-aaf0-f4dd2ac2accc'
-const CONTACT_BOB = '019d81fd-a1ea-75cf-b513-f35976cefc93'
+const KEY_A = '019d81fd-a1e9-76dd-aaf0-f4dd2ac2accc'
+const KEY_B = '019d81fd-a1ea-75cf-b513-f35976cefc93'
 
-const aliceContacts = new CRMap<Contact>()
-const bobContacts = new CRMap<Contact>()
+const left = new CRMap<EntryValue>()
+const right = new CRMap<EntryValue>()
 
-aliceContacts.addEventListener('delta', (event) => {
-  bobContacts.merge(event.detail)
+left.addEventListener('delta', (event) => {
+  right.merge(event.detail)
 })
 
-aliceContacts.set(CONTACT_ALICE, {
-  name: 'Alice Example',
-  email: 'alice@example.com',
-  tags: ['friend', 'vip'],
-  online: true,
-})
-aliceContacts.set(CONTACT_BOB, {
-  name: 'Bob Example',
-  email: 'bob@example.com',
-  tags: ['coworker'],
-  online: false,
-})
+left.set(KEY_A, { label: 'alpha', version: 1 })
+left.set(KEY_B, { label: 'beta', version: 1 })
 
-console.log(bobContacts.get(CONTACT_ALICE)?.email) // 'alice@example.com'
-console.log(bobContacts.entries())
+console.log(right.get(KEY_A)?.label) // 'alpha'
+console.log(right.entries())
 ```
 
 ### Hydrating from a snapshot
@@ -90,17 +78,15 @@ import {
   type CRMapSnapshot,
 } from '@sovereignbase/convergent-replicated-map'
 
-type Contact = {
-  name: string
-  email: string
-  tags: string[]
-  online: boolean
+type EntryValue = {
+  label: string
+  version: number
 }
 
-const CONTACT_ALICE = '019d81fd-a1e9-76dd-aaf0-f4dd2ac2accc'
+const KEY_A = '019d81fd-a1e9-76dd-aaf0-f4dd2ac2accc'
 
-const source = new CRMap<Contact>()
-let snapshot!: CRMapSnapshot<string, Contact>
+const source = new CRMap<EntryValue>()
+let snapshot!: CRMapSnapshot<string, EntryValue>
 
 source.addEventListener(
   'snapshot',
@@ -110,17 +96,12 @@ source.addEventListener(
   { once: true }
 )
 
-source.set(CONTACT_ALICE, {
-  name: 'Alice Example',
-  email: 'alice@example.com',
-  tags: ['friend'],
-  online: true,
-})
+source.set(KEY_A, { label: 'draft', version: 1 })
 source.snapshot()
 
-const restored = new CRMap<Contact>(snapshot)
+const restored = new CRMap<EntryValue>(snapshot)
 
-console.log(restored.get(CONTACT_ALICE)?.name) // 'Alice Example'
+console.log(restored.get(KEY_A)?.label) // 'draft'
 ```
 
 ### Event channels
@@ -128,42 +109,30 @@ console.log(restored.get(CONTACT_ALICE)?.name) // 'Alice Example'
 ```ts
 import { CRMap } from '@sovereignbase/convergent-replicated-map'
 
-type Contact = {
-  name: string
-  email: string
-  tags: string[]
-  online: boolean
-}
+const KEY_A = '019d81fd-a1e9-76dd-aaf0-f4dd2ac2accc'
 
-const CONTACT_ALICE = '019d81fd-a1e9-76dd-aaf0-f4dd2ac2accc'
+const map = new CRMap<string>()
 
-const contacts = new CRMap<Contact>()
-
-contacts.addEventListener('delta', (event) => {
+map.addEventListener('delta', (event) => {
   console.log('delta', event.detail)
 })
 
-contacts.addEventListener('change', (event) => {
+map.addEventListener('change', (event) => {
   console.log('change', event.detail)
 })
 
-contacts.addEventListener('snapshot', (event) => {
+map.addEventListener('snapshot', (event) => {
   console.log('snapshot', event.detail)
 })
 
-contacts.addEventListener('ack', (event) => {
+map.addEventListener('ack', (event) => {
   console.log('ack', event.detail)
 })
 
-contacts.set(CONTACT_ALICE, {
-  name: 'Alice Example',
-  email: 'alice@example.com',
-  tags: ['friend'],
-  online: true,
-})
-contacts.delete(CONTACT_ALICE)
-contacts.snapshot()
-contacts.acknowledge()
+map.set(KEY_A, 'draft')
+map.delete(KEY_A)
+map.snapshot()
+map.acknowledge()
 ```
 
 ### Iteration and JSON serialization
@@ -171,46 +140,29 @@ contacts.acknowledge()
 ```ts
 import { CRMap } from '@sovereignbase/convergent-replicated-map'
 
-type Contact = {
-  name: string
-  email: string
-  tags: string[]
-  online: boolean
+const KEY_A = '019d81fd-a1e9-76dd-aaf0-f4dd2ac2accc'
+const KEY_B = '019d81fd-a1ea-75cf-b513-f35976cefc93'
+
+const map = new CRMap<string>()
+
+map.set(KEY_A, 'alpha')
+map.set(KEY_B, 'beta')
+
+const serialized = JSON.stringify(map)
+const restored = new CRMap<string>(JSON.parse(serialized))
+
+for (const [key, value] of map) {
+  console.log(key, value)
 }
 
-const CONTACT_ALICE = '019d81fd-a1e9-76dd-aaf0-f4dd2ac2accc'
-const CONTACT_BOB = '019d81fd-a1ea-75cf-b513-f35976cefc93'
-
-const contacts = new CRMap<Contact>()
-
-contacts.set(CONTACT_ALICE, {
-  name: 'Alice Example',
-  email: 'alice@example.com',
-  tags: ['friend'],
-  online: true,
-})
-contacts.set(CONTACT_BOB, {
-  name: 'Bob Example',
-  email: 'bob@example.com',
-  tags: ['coworker'],
-  online: false,
+map.forEach((value, key, target) => {
+  console.log(key, value, target.size)
 })
 
-const serialized = JSON.stringify(contacts)
-const restored = new CRMap<Contact>(JSON.parse(serialized))
-
-for (const [contactId, contact] of contacts) {
-  console.log(contactId, contact)
-}
-
-contacts.forEach((contact, contactId, target) => {
-  console.log(contactId, contact, target.size)
-})
-
-console.log(contacts.keys())
-console.log(contacts.values())
-console.log(contacts.entries())
-console.log(restored.get(CONTACT_ALICE)?.name) // 'Alice Example'
+console.log(map.keys())
+console.log(map.values())
+console.log(map.entries())
+console.log(restored.get(KEY_A)) // 'alpha'
 ```
 
 This example assumes your map values are JSON-compatible. For general
@@ -227,62 +179,41 @@ underlying replica state.
 ```ts
 import { CRMap, type CRMapAck } from '@sovereignbase/convergent-replicated-map'
 
-type Contact = {
-  name: string
-  email: string
-  tags: string[]
-  online: boolean
-}
+const KEY_A = '019d81fd-a1e9-76dd-aaf0-f4dd2ac2accc'
 
-const CONTACT_ALICE = '019d81fd-a1e9-76dd-aaf0-f4dd2ac2accc'
-
-const aliceContacts = new CRMap<Contact>()
-const bobContacts = new CRMap<Contact>()
+const left = new CRMap<string>()
+const right = new CRMap<string>()
 const frontiers = new Map<string, CRMapAck>()
 
-aliceContacts.addEventListener('delta', (event) =>
-  bobContacts.merge(event.detail)
-)
-bobContacts.addEventListener('delta', (event) =>
-  aliceContacts.merge(event.detail)
-)
+left.addEventListener('delta', (event) => right.merge(event.detail))
+right.addEventListener('delta', (event) => left.merge(event.detail))
 
-aliceContacts.addEventListener('ack', (event) => {
-  frontiers.set('alice', event.detail)
+left.addEventListener('ack', (event) => {
+  frontiers.set('left', event.detail)
 })
 
-bobContacts.addEventListener('ack', (event) => {
-  frontiers.set('bob', event.detail)
+right.addEventListener('ack', (event) => {
+  frontiers.set('right', event.detail)
 })
 
-aliceContacts.set(CONTACT_ALICE, {
-  name: 'Alice Example',
-  email: 'alice@example.com',
-  tags: ['friend'],
-  online: false,
-})
-aliceContacts.set(CONTACT_ALICE, {
-  name: 'Alice Example',
-  email: 'alice@example.com',
-  tags: ['friend', 'vip'],
-  online: true,
-})
-aliceContacts.delete(CONTACT_ALICE)
+left.set(KEY_A, 'draft')
+left.set(KEY_A, 'published')
+left.delete(KEY_A)
 
-aliceContacts.acknowledge()
-bobContacts.acknowledge()
+left.acknowledge()
+right.acknowledge()
 
-aliceContacts.garbageCollect([...frontiers.values()])
-bobContacts.garbageCollect([...frontiers.values()])
+left.garbageCollect([...frontiers.values()])
+right.garbageCollect([...frontiers.values()])
 ```
 
 ### Advanced exports
 
-If you need to build your own member-indexed CRDT binding instead of using the
+If you need to build your own string-keyed CRDT binding instead of using the
 high-level `CRMap` class, the package also exports the core CRUD and MAGS
 functions together with the replica and payload types.
 
-Those low-level exports let you build custom membership abstractions, protocol
+Those low-level exports let you build custom map abstractions, protocol
 wrappers, or framework-specific bindings while preserving the same convergence
 rules as the default `CRMap` binding.
 
@@ -296,39 +227,23 @@ import {
   type CRMapSnapshot,
 } from '@sovereignbase/convergent-replicated-map'
 
-type Contact = {
-  name: string
-  email: string
-  tags: string[]
-  online: boolean
-}
+const KEY_A = '019d81fd-a1e9-76dd-aaf0-f4dd2ac2accc'
 
-const CONTACT_ALICE = '019d81fd-a1e9-76dd-aaf0-f4dd2ac2accc'
-
-const replica = __create<Contact>()
-const local = __update(
-  CONTACT_ALICE,
-  {
-    name: 'Alice Example',
-    email: 'alice@example.com',
-    tags: ['friend'],
-    online: true,
-  },
-  replica
-)
+const replica = __create<string>()
+const local = __update(KEY_A, 'draft', replica)
 
 if (local) {
-  const outgoing: CRMapDelta<string, Contact> = local.delta
+  const outgoing: CRMapDelta<string, string> = local.delta
   const remoteChange = __merge(outgoing, replica)
 
   console.log(remoteChange)
 }
 
-const snapshot: CRMapSnapshot<string, Contact> = __snapshot(replica)
+const snapshot: CRMapSnapshot<string, string> = __snapshot(replica)
 console.log(snapshot)
 ```
 
-The intended split is:
+The exports are grouped as follows:
 
 - `__create`, `__read`, `__update`, `__delete` for local replica mutations.
 - `__merge`, `__acknowledge`, `__garbageCollect`, `__snapshot` for gossip,
@@ -357,16 +272,16 @@ Ingress stays tolerant:
 
 - Snapshots are serializable full-state payloads with `values` and `tombstones`.
 - Deltas are serializable partial snapshot payloads with `values` and `tombstones`.
-- `change` is a minimal member-identifier-keyed visible patch where deleted keys map to `undefined`.
+- `change` is a minimal key-indexed visible patch where deleted keys map to `undefined`.
 - `toJSON()` returns a detached serializable snapshot.
 - `JSON.stringify()` and `toString()` are only reliable when map values are
   JSON-compatible.
 - `get()`, `for...of`, `values()`, `entries()`, and `forEach()` expose detached copies of visible values rather than mutable references into replica state.
-- `keys()`, `set()`, `delete()`, `clear()`, `merge()`, `snapshot()`, `acknowledge()`, and `garbageCollect()` all operate on the live membership projection.
+- `keys()`, `set()`, `delete()`, `clear()`, `merge()`, `snapshot()`, `acknowledge()`, and `garbageCollect()` all operate on the live map projection.
 
 ### Convergence and compaction
 
-- The convergence target is the visible membership projection, not identical internal tombstone sets.
+- The convergence target is the visible map projection, not identical internal tombstone sets.
 - Same-key conflict resolution follows this order:
   - a direct descendant wins
   - the same UUID can advance via a larger predecessor
