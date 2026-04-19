@@ -293,24 +293,22 @@
     <section id="abstract">
       <p>
         This document defines Convergent Replicated Map (CR-Map), a delta CRDT
-        for indexed membership views keyed by non-empty string member
-        identifiers. A common presentation is a <code>contacts</code> map whose
-        keys are random UUID strings and whose values are detached member
-        objects. Each key resolves to at most one visible value. Every accepted
-        write is assigned a UUIDv7, and replaced or deleted identifiers are
-        retained as tombstones.
+        for dynamic non-empty string-keyed maps. Each key resolves to at most
+        one visible value. Every accepted write is assigned a UUIDv7, and
+        replaced or deleted identifiers are retained as tombstones.
       </p>
       <p>
-        The specification defines the replica model, snapshot and delta formats,
-        merge rules, acknowledgement and garbage-collection rules, and one
-        conforming JavaScript binding.
+        The specification defines the data structure, snapshot and delta
+        formats, merge rules, acknowledgement and garbage-collection rules, and
+        one conforming JavaScript binding.
       </p>
     </section>
 
     <section id="sotd">
       <p>
-        CR-Map is designed to serve as a small replicated core for indexed
-        membership state, gossip protocols, and local-first synchronization.
+        CR-Map is designed to satisfy the need for a CRDT that allows
+        dynamically identified or indexed, objects or other members to be
+        managed asynchronously without conflicts.
       </p>
       <p>
         This specification is maintained alongside a reference implementation.
@@ -365,8 +363,7 @@
       </p>
       <p>
         A <dfn>map key</dfn> is a non-empty string naming one visible member in
-        a <a>CR-Map replica</a>. In the intended use case it is typically a
-        randomly generated UUID string.
+        a <a>CR-Map replica</a>.
       </p>
       <p>
         A <dfn>map value</dfn> is the consumer-defined member payload presently
@@ -418,9 +415,9 @@
         at most one winning entry at a time.
       </p>
       <p>
-        Every accepted local write mints a fresh winning
-        <a>UUIDv7 identifier</a>. If the key already had a winner, that previous
-        winning identifier becomes the new write's
+        Every accepted local write mints a fresh
+        <a>UUIDv7 identifier</a>. If the key already had a entry, that previous
+        entrys identifier becomes the new entrys
         <a>predecessor identifier</a> and is retained as a
         <a>tombstone entry</a>. If the key did not yet exist, the replica still
         mints a fresh <a>predecessor identifier</a> and retains it as a
@@ -428,7 +425,7 @@
       </p>
       <p>
         Deleting a key removes its visible entry from the
-        <a>live projection</a> and retains that deleted winner's UUIDv7 as a
+        <a>live projection</a> and retains that deleted UUIDv7 as a
         <a>tombstone entry</a>.
       </p>
       <p>
@@ -464,7 +461,7 @@
         The same logical replica can be viewed through three useful
         representations: the detached structured-clone snapshot used for
         transport and storage, one possible runtime projection used internally
-        by a binding, and the final consumer-facing indexed membership view.
+        by the binding, and the final consumer-facing indexed membership view.
       </p>
 
       <section>
