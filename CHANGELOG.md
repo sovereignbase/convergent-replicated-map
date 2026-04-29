@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.2](https://github.com/sovereignbase/convergent-replicated-map/compare/v1.0.1...v1.0.2) (2026-04-29)
+
+
+### Bug Fixes
+
+* bumbed dependencies ([9579aca](https://github.com/sovereignbase/convergent-replicated-map/commit/9579acafdae3c9aaf5c94cf2d848e9232b9d6f13))
+
 ## [1.0.1](https://github.com/sovereignbase/convergent-replicated-map/compare/v1.0.0...v1.0.1) (2026-04-19)
 
 
