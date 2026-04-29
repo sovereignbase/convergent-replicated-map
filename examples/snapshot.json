@@ -3,7 +3,7 @@
     {
       "uuidv7": "019d81fd-a1e9-76dd-aaf0-f4dd2ac2accc",
       "value": {
-        "key": "019d81fd-a1e9-76dd-aaf0-f4dd2ac2accc",
+        "key": "your-key-1",
         "value": {
           "label": "alpha",
           "version": 3,
@@ -15,7 +15,7 @@
     {
       "uuidv7": "019d81fd-a1ea-75cf-b513-f35976cefc93",
       "value": {
-        "key": "019d81fd-a1ea-75cf-b513-f35976cefc93",
+        "key": "your-key-2",
         "value": {
           "label": "beta",
           "version": 1,

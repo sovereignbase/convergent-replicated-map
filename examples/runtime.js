@@ -5,7 +5,7 @@ const replica = {
       {
         uuidv7: '019d81fd-a1e9-76dd-aaf0-f4dd2ac2accc',
         value: {
-          key: '019d81fd-a1e9-76dd-aaf0-f4dd2ac2accc',
+          key: 'your-key-1',
           value: {
             label: 'alpha',
             version: 3,
@@ -20,7 +20,7 @@ const replica = {
       {
         uuidv7: '019d81fd-a1ea-75cf-b513-f35976cefc93',
         value: {
-          key: '019d81fd-a1ea-75cf-b513-f35976cefc93',
+          key: 'your-key-2',
           value: {
             label: 'beta',
             version: 1,
@@ -32,14 +32,8 @@ const replica = {
     ],
   ]),
   relations: new Map([
-    [
-      '019d81fd-a1e9-76dd-aaf0-f4dd2ac2accc',
-      '019d81fd-a1e9-76dd-aaf0-f4dd2ac2accc',
-    ],
-    [
-      '019d81fd-a1ea-75cf-b513-f35976cefc93',
-      '019d81fd-a1ea-75cf-b513-f35976cefc93',
-    ],
+    ['019d81fd-a1e9-76dd-aaf0-f4dd2ac2accc', 'your-key-1'],
+    ['019d81fd-a1ea-75cf-b513-f35976cefc93', 'your-key-2'],
   ]),
   tombstones: new Set([
     '019d81fd-a1e8-72a8-bfc3-a08e44d1211e',
